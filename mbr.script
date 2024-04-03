@@ -1,0 +1,7 @@
+label: dos
+label-id: 0x56980422
+device: edOS.img
+unit: sectors
+sector-size: 512
+
+edOS.img1 : start=        2048, size=     1046528, type=83, bootable
