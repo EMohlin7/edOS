@@ -1,4 +1,3 @@
-
 OUTPUT_FORMAT(binary)
 
 SECTIONS
@@ -6,7 +5,7 @@ SECTIONS
     . = 0x7e00;
     .text :
     {
-        build/objects/stage2.o(.text)
+        build/objects/entry.o(.text)
         *(.text)
     }
     .data : {*(.data)}

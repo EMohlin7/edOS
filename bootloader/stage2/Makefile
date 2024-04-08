@@ -1,28 +1,50 @@
+BIN = build/stage2.bin
+
+CC = gcc
+CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie
+
 ODIR = build/objects
+
 ASMS_DIR = source/asm
-CSRC_DIR = source/c
-
-ASMS = stage2.s
-CSRC = stage2.c
-
-ASMO = stage2.o
+ASMS = entry.s 
+ASMO = entry.o 
 	
-COBJ = 
+CSRC_DIR = source/c
+CSRC = pageTable.c
+COBJ = pageTable.o longMode.o print.o
 
 OBJS = ${ASMO} ${COBJ}
 
-VPATH=source/c:source/asm:${ODIR}
+VPATH=${CSRC_DIR}:${ASMS_DIR}:${ODIR}
 
 
 
-build/stage2.bin: ${CSRC} ${ASMO}
-	i686-elf-gcc -nostdlib -lgcc -mno-red-zone -o $@ $^ -T stage2.ld
+${BIN}: ${COBJ} ${ASMO}
+	${CC} ${CFLAGS} -o $@ $^ -T stage2.ld
 
 
-${ODIR}/stage2.o: stage2.s
+${ODIR}/entry.o: entry.s
 	mkdir -p ${ODIR}
-	yasm -f elf32 $< -o $@
+	yasm -f elf64 $< -o $@
+
+${ODIR}/longMode.o: longMode.c
+	mkdir -p ${ODIR}
+	${CC} ${CFLAGS} -c -o $@ $^
+
+${ODIR}/print.o: print.c
+	mkdir -p ${ODIR}
+	${CC} ${CFLAGS}  -c -o $@ $^
+
+
+${ODIR}/pageTable.o: pageTable.c
+	mkdir -p ${ODIR}
+	${CC} ${CFLAGS} -m32 -S -o temp.s $^
+	echo '.code32' | cat - temp.s > temp && mv temp temp.s
+	${CC} ${CFLAGS} -c -o $@ temp.s
+	rm temp.s
+
 
 .PHONY: clean
 clean:
 	rm ${ODIR}/*
+	rm ${BIN}
