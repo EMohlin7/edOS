@@ -31,10 +31,10 @@ elm:
     or eax, (1 << 5)
     mov cr4, eax
 
-    ;Modify the efer register
+    ;Modify the efer register and set the LME-bit
     mov ecx, 0xC0000080          
     rdmsr                        
-    or eax, 1 << 8       ; Set the LM-bit 
+    or eax, 1 << 8        
     wrmsr           
 
     ;Load address of page table
@@ -57,7 +57,6 @@ setSegments:
     mov fs, eax   
     mov gs, eax 
     mov ss, eax     
-    mov qword [rdi], rax     
     jmp longMode
 
 
