@@ -5,9 +5,6 @@
 /// @brief Setup the initial page tables
 /// @param PML4 The physical address to place PML4 at. The rest of the tables will be placed directly following this address.
 void setupPageTable(uint32_t PML4){
-    int length = 4;
-    short data[] = {0x0F48, 0x0F6F, 0x0F6F, 0x1F6F};
-    volatile short* mem = VID_MEM;
     for(int i = 0; i< length; ++i){
         //mem[i] = data[i];
     }
