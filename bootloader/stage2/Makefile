@@ -1,7 +1,7 @@
 BIN = build/stage2.bin
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie
+CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -DNULL=0
 
 ODIR = build/objects
 
@@ -33,7 +33,7 @@ ${ODIR}/longMode.o: longMode.c
 
 ${ODIR}/print.o: print.c
 	mkdir -p ${ODIR}
-	${CC} ${CFLAGS}  -c -o $@ $^
+	${CC} ${CFLAGS} -c -o $@ $^
 
 
 ${ODIR}/pageTable.o: pageTable.c
@@ -42,6 +42,7 @@ ${ODIR}/pageTable.o: pageTable.c
 	echo '.code32' | cat - temp.s > temp && mv temp temp.s
 	${CC} ${CFLAGS} -c -o $@ temp.s
 	rm temp.s
+
 
 
 .PHONY: clean
