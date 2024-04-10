@@ -1,7 +1,7 @@
 BIN = build/stage2.bin
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -DNULL=0
+CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -DNULL=0 -Iinclude
 
 ODIR = build/objects
 
@@ -11,7 +11,7 @@ ASMO = entry.o
 	
 CSRC_DIR = source/c
 CSRC = pageTable.c
-COBJ = pageTable.o longMode.o print.o
+COBJ = pageTable.o longMode.o print.o display.o
 
 OBJS = ${ASMO} ${COBJ}
 
@@ -19,7 +19,7 @@ VPATH=${CSRC_DIR}:${ASMS_DIR}:${ODIR}
 
 
 
-${BIN}: ${COBJ} ${ASMO}
+${BIN}: ${OBJS}
 	${CC} ${CFLAGS} -o $@ $^ -T stage2.ld
 
 
@@ -32,6 +32,10 @@ ${ODIR}/longMode.o: longMode.c
 	${CC} ${CFLAGS} -c -o $@ $^
 
 ${ODIR}/print.o: print.c
+	mkdir -p ${ODIR}
+	${CC} ${CFLAGS} -c -o $@ $^
+
+${ODIR}/display.o: display.c
 	mkdir -p ${ODIR}
 	${CC} ${CFLAGS} -c -o $@ $^
 
