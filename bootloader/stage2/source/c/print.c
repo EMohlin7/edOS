@@ -204,7 +204,7 @@ static uint64_t printInteger(int val){
         number[i] = (val % 10)+48;
         val /= 10;
     } while (i-- > 0 && val > 0);
-    
+    i += 1;
     for( ; number[i] != NULL && i < NUM_MAX_CHARS; ++i){
         printChar(number[i], WHITE_BLACK_CHAR);
         printed++;
@@ -221,7 +221,7 @@ uint64_t format(uint64_t printed){
         switch (spec)
         {
         case 'd':
-            printed += printInteger(256);
+            printed += printInteger(-256);
             break;
         
         default:
