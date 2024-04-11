@@ -42,7 +42,7 @@ ${ODIR}/display.o: display.c
 
 ${ODIR}/pageTable.o: pageTable.c
 	mkdir -p ${ODIR}
-	${CC} ${CFLAGS} -m32 -S -o temp.s $^
+	${CC} ${CFLAGS} -m32 -S -O0 -o temp.s $^
 	echo '.code32' | cat - temp.s > temp && mv temp temp.s
 	${CC} ${CFLAGS} -c -o $@ temp.s
 	rm temp.s

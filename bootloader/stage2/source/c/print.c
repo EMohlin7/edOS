@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include <stdarg.h>
 #include "display.h"
 
@@ -29,17 +28,23 @@ typedef enum length{
     longInt
 } Length;
 
+typedef struct format{
+    uint64_t width;
+    int64_t precision;
+    Length length;
+    uint8_t flags;
+    char spec;
+} Format;
+
 Token lookahead;
 uint64_t tokenValue;
 int index;
-uint64_t flagData, widthData, precisionData;
-Length lenghtData;
 const char* string;
 
 
 char lengths[] = {'h', 'l', 0};
 char flags[] = {'-', '+', ' ', '#', '0', 0};
-char specifiers[] = {'d', 'i', 'u', 'o', 'x', 'X', 'f', 'F', 'e', 'E', 'g', 'G', 'a', 'A', 'c', 's', 'p', 'n', 0};
+char specifiers[] = {'d', 'i', 'u', 'o', 'x', 'X', 'c', 's', 'p', 'n', 0};
 char numbers[] = "0123456789";
 
 
@@ -124,7 +129,7 @@ uint64_t text(uint64_t printed){
     if(lookahead == CHAR){
         char c = tokenValue;
         match(CHAR);
-        printChar(c, 0x0F);
+        print(c);
         printed = text(++printed);
     }
     else{
@@ -134,48 +139,64 @@ uint64_t text(uint64_t printed){
     return printed;
 }
 
-void flag(){
+uint8_t flag(uint8_t flags){
     if(lookahead == FLAG){
         switch(tokenValue){
             case '-':
-                flagData |= LEFT_JUST;
+                flags |= LEFT_JUST;
                 break;
             case '+':
-                flagData |= SIGN;
+                flags |= SIGN;
                 break;
             case ' ':
-                flagData |= NO_SIGN;
+                flags |= NO_SIGN;
                 break;
             case '#':
-                flagData |= HASH;
+                flags |= HASH;
                 break;
             case '0':
-                flagData |= PAD_ZEROS;
+                flags |= PAD_ZEROS;
                 break;
             default:
                 break;
         }
 
-        match(FLAG); flag();
+        match(FLAG); flags = flag(flags);
     }else{
         //empty
     }
+    return flags;
 }
 
-void width(){
+uint64_t width(){
+    uint64_t width = 0;
     if(lookahead == NUMBER){
-        widthData = tokenValue;
+        width = tokenValue;
         match(NUMBER);
     }
+    return width;
 }
 
-void precision(){
+int64_t precision(){
+    int64_t precision = -1;
     if(lookahead == DOT){
-        match(DOT); precisionData = tokenValue; match(NUMBER);
+        match(DOT); 
+        if(lookahead == NUMBER){
+            if(tokenValue > INT64_MAX)
+                precision = INT64_MAX;
+            else    
+                precision = tokenValue;
+            match(NUMBER);
+        }
+        else{
+            precision = 0;
+        }
     }
+    return precision;
 }
 
-void length(){
+Length length(){
+    Length length = integer;
     if(lookahead == LENGTH){
         switch (tokenValue)
         {
@@ -188,42 +209,142 @@ void length(){
         }
         match(LENGTH); 
     }
+    return length;
 }
 
-static uint64_t printInteger(int val){
+static uint64_t preceedingChars(int64_t val, uint64_t numChars, const Format* f){
     uint64_t printed = 0;
+
     if(val < 0){
-        printChar('-', WHITE_BLACK_CHAR);
         val = -val;
+        if(!(f->flags&NO_SIGN)){
+            print('-');
+        }
+        else{
+            print(' ');
+        }
+        ++printed;        
+    }
+    else if(f->flags&SIGN){
+        print('+');
         ++printed;
     }
-    char number[NUM_MAX_CHARS];
-    int i = NUM_MAX_CHARS-1;
-    do
-    {
-        number[i] = (val % 10)+48;
-        val /= 10;
-    } while (i-- > 0 && val > 0);
-    i += 1;
-    for( ; number[i] != NULL && i < NUM_MAX_CHARS; ++i){
-        printChar(number[i], WHITE_BLACK_CHAR);
-        printed++;
+    else if(f->flags&NO_SIGN){
+        print(' ');
+        ++printed;
+    }
+
+    if(f->flags&HASH){       
+        if(f->spec == 'o'){
+            print('0');
+            ++printed;
+        }
+        if(f->spec == 'x'){
+            print('0');
+            print('x');
+            printed += 2;
+        }
+        if(f->spec == 'X'){
+            print('0');
+            print('X');
+            printed += 2;
+        }
+    }
+
+    //Right justified
+    if(f->width > numChars && !(f->flags&LEFT_JUST)){
+        char c = f->flags&PAD_ZEROS ? '0' : ' ';
+        for(uint64_t i = 0; i < f->width - numChars; ++i){
+            print(c);
+            ++printed;
+        }
     }
 
     return printed;
 }
 
+
+static uint64_t printInteger(const void* orgVal, const Format* f){
+    int64_t val;
+    uint64_t printed = 0;
+
+
+    if(f->length == integer){
+        val = *(int32_t*)orgVal;
+    }
+    else if(f->length == character){
+        val = *(int8_t*)orgVal;
+    }
+    else if(f->length == shortInt){
+        val = *(int16_t*)orgVal;
+    }
+    else{
+        val = *(int64_t*)orgVal;
+    }
+    if(f->precision == 0 && val == 0)
+        goto skipPrint;
+
+
+    if(val < 0)
+        val = -val;
+
+    char number[NUM_MAX_CHARS];
+    int i = NUM_MAX_CHARS-1;
+    uint64_t numChars = 0;
+    int64_t temp = val;
+    do
+    {
+        number[i] = (temp % 10)+48;
+        temp /= 10;
+        ++numChars;
+    } while (i-- > 0 && temp > 0);
+
+    if(f->precision > 0){
+        if(numChars < INT64_MAX){
+            for(; (int64_t)numChars < f->precision; ++numChars){
+                number[i--] = '0'; 
+            }
+        }
+    }
+    i += 1;
+
+    printed = preceedingChars(val, numChars, f);
+    for( ; number[i] != NULL && i < NUM_MAX_CHARS; ++i){
+        print(number[i]);
+        printed++;
+    }
+
+    //Left justified
+    if(f->flags&LEFT_JUST){
+        if(f->width > numChars){
+            char c = f->flags&PAD_ZEROS ? '0' : ' ';
+            for(uint64_t i = 0; i < f->width - numChars; ++i){
+                print(c);
+                ++printed;
+            }
+        }
+    }
+
+skipPrint:
+    return printed;
+}
+
 uint64_t format(uint64_t printed){
+    Format f;
     if(lookahead == BEGIN){
-        match(BEGIN); flag(); width(); precision(); length(); 
+        match(BEGIN); f.flags=flag(0); f.width=width(); f.precision=precision(); f.length=length(); 
         char spec = tokenValue;
+        f.spec = spec;
         match(SPECIFIER);
+        int val = 235;
         switch (spec)
         {
         case 'd':
-            printed += printInteger(-256);
+            printed += printInteger(&val, &f);
             break;
-        
+        case 'i':
+            printed += printInteger(&val, &f);
+            break;
         default:
             break;
         }
@@ -239,12 +360,6 @@ uint64_t list(uint64_t printed){
     return printed;
 }
 
-static void setDefaults(){
-    lenghtData = integer;
-    flagData = 0;
-    precisionData = 0;
-    widthData = 0;
-}
 
 uint64_t parse(const char* text){
     index = 0;

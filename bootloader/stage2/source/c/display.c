@@ -9,6 +9,10 @@ void printChar(char character, uint8_t color){
     dest[cursorPos++] = c;
 }
 
+void print(char character){
+    printChar(character, WHITE_BLACK_CHAR);
+}
+
 void setCursorPos(uint64_t pos){
     cursorPos = pos;
 }

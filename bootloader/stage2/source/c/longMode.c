@@ -9,6 +9,6 @@ void longMode(){
 
     //char string[] = \nHej";
 
-    printf("Hejasna balooogas%d!");
+    printf("Hejasna balooogas%-+05d!");
     while(1);
 }
