@@ -315,13 +315,11 @@ static uint64_t printInteger(const void* orgVal, const Format* f){
     }
 
     //Left justified
-    if(f->flags&LEFT_JUST){
-        if(f->width > numChars){
-            char c = f->flags&PAD_ZEROS ? '0' : ' ';
-            for(uint64_t i = 0; i < f->width - numChars; ++i){
-                print(c);
-                ++printed;
-            }
+    if(f->flags&LEFT_JUST && f->width > numChars){
+        char c = f->flags&PAD_ZEROS ? '0' : ' ';
+        for(uint64_t i = 0; i < f->width - numChars; ++i){
+            print(c);
+            ++printed;
         }
     }
 
