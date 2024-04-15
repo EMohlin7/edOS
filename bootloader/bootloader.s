@@ -8,16 +8,9 @@ BITS 16
 SECTION .text
 start:
     call loadFile
-
-
-enterPM:
     call enableA20
-    cli                     ;Disable interrupts    
-    lgdt [g_GDTDesc]
-    mov eax, cr0
-    or eax, 1               ;Set Protected mode enabled bit
-    mov cr0, eax
-    jmp 0x0008:CLUS_POS
+    jmp CLUS_POS
+    
 
 enableA20:
     mov ax, 0x2400
@@ -43,19 +36,19 @@ printString:
 
 endPrint:
     ret
-endPEsetup:
-    jmp $
 
 
 
 ;TODO: Load rest of file if it spans multiple clusters
 loadFile:
     push si
-    ;call loadFAT
+    call loadFAT
+
     mov eax, dword [0x7C00 + 44]                 ;Load root cluster number
     pop si
     mov di, CLUS_POS
     call loadCluster                                ;Load root root directory
+
     mov eax, CLUS_POS
     call findFile
     mov ebx, eax                                    ;ebx now holds the address of the file descriptor
@@ -67,8 +60,36 @@ loadFile:
     add ecx, 0x1A
     mov ax, word [ecx]                              ;Load lower word of cluster number
     
+    mov cx, 0
+ldClusters:
+    push dx
+    mov ebx, eax                                    ;ebx holds cluster number
+    mov dx, 4
+    mul dx                                         ;eax is now the offset into the FAT
+    pop dx
+    add eax, FAT_POS                                ;eax is now the postion in memory for FAT entry
+    mov eax, dword [eax]                            ;eax holds next cluster number
+    and eax, 0x0FFFFFFF                             ;Top four bits are not used
+    push eax
+    
+    ;Calculate destination pos
+    push cx
+    mov ax, cx
+    mov cl, byte [0x7C00 + 13]                    ;Load sector per cluster
+    push dx
+    mul cl
+    mov cx, 512                                   ;Sector size
+    mul cx 
     mov di, CLUS_POS
+    add di, ax
+    pop dx
+    mov eax, ebx
     call loadCluster                                ;Load stage2 bootloader
+    pop cx
+    pop eax                                         ;pop next cluster number
+    inc cx
+    cmp eax, 0x0FFFFFF8                             ; >= 0x0FFFFFF8 is the last cluster of a file
+    jl ldClusters
 
     ret
 
@@ -96,20 +117,22 @@ calcSectorOfCluster:
     ret
 
 
-;loadFAT:
-;    mov dword ecx, [0x7C00 + 36]                 ;Load FAT size
-;    movzx eax, word [0x7C00 + 14]                ;Load number of reserved sectors 
-;    mov di, FAT_POS
-;    add eax, esi                                 ;Add start of partition offset
-;    push ecx
-;    ldFat:
-;    call loadSector
-;    ;push si
-;    ;mov si, fatLoaded
-;    ;call printString
-;    ;pop si
-;    pop ecx
-;    ;TODO: Fix so FAT bigger than one word can be loaded.
+loadFAT:
+    ;TODO: Fix this. Error when trying to load whole FAT.
+    mov dword ecx, 3;[0x7C00 + 36]                 ;Load FAT size
+    movzx eax, word [0x7C00 + 14]                ;Load number of reserved sectors 
+    mov di, FAT_POS
+    add eax, esi                                 ;Add start of partition offset
+    ;push ecx
+    ldFat:
+    call loadSector
+    ret
+    ;push si
+    ;mov si, fatLoaded
+    ;call printString
+    ;pop si
+    ;pop ecx
+    ;TODO: Fix so FAT bigger than one word can be loaded.
     
 
 ;eax holds cluster number. si holds first sector of partion. di holds address to store cluster
@@ -205,29 +228,29 @@ error:
     jmp $
 
 
-g_GDT:
-    ;Null descriptor
-    dq 0                   
-
-    ;Code segment
-    dw 0xffff               ;Limit bits 0-15
-    dw 0                    ;Base bits 0-15
-    db 0                    ;Base bits 16-23
-    db 10011011b            ;Access byte (present, privelige bits 1-2, Descriptor type, Executable, Direction, R/W, Accessed)
-    db 11001111b            ;Flag (Granularity, Size, Long mode, Reserved); Limit bits 16-19
-    db 0                    ;base bits 24-31
-
-    ;Data segment
-    dw 0xffff               ;Limit bits 0-15
-    dw 0                    ;Base bits 0-15
-    db 0                    ;Base bits 16-23
-    db 10010011b            ;Access byte (present, privelige bits 1-2, Descriptor type, Executable, Direction, R/W, Accessed)
-    db 11001111b            ;Flag (Granularity, Size, Long mode, Reserved); Limit bits 16-19
-    db 0                    ;base bits 24-31
-
-g_GDTDesc:
-    dw g_GDTDesc - g_GDT - 1
-    dd g_GDT
+;g_GDT:
+;    ;Null descriptor
+;    dq 0                   
+;
+;    ;Code segment
+;    dw 0xffff               ;Limit bits 0-15
+;    dw 0                    ;Base bits 0-15
+;    db 0                    ;Base bits 16-23
+;    db 10011011b            ;Access byte (present, privelige bits 1-2, Descriptor type, Executable, Direction, R/W, Accessed)
+;    db 11001111b            ;Flag (Granularity, Size, Long mode, Reserved); Limit bits 16-19
+;    db 0                    ;base bits 24-31
+;
+;    ;Data segment
+;    dw 0xffff               ;Limit bits 0-15
+;    dw 0                    ;Base bits 0-15
+;    db 0                    ;Base bits 16-23
+;    db 10010011b            ;Access byte (present, privelige bits 1-2, Descriptor type, Executable, Direction, R/W, Accessed)
+;    db 11001111b            ;Flag (Granularity, Size, Long mode, Reserved); Limit bits 16-19
+;    db 0                    ;base bits 24-31
+;
+;g_GDTDesc:
+;    dw g_GDTDesc - g_GDT - 1
+;    dd g_GDT
 
 ;string: db "Bootloader", 0
 
