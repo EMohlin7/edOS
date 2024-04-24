@@ -5,10 +5,6 @@
 
 __attribute__((noreturn))
 void longMode(){
-    
-
-    //char string[] = \nHej";
-
-    printf(" %ld", printf("Hejsan!%#.4x", 3500));
+    printf("Long mode enabled");
     while(1);
 }
