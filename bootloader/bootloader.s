@@ -39,7 +39,6 @@ endPrint:
 
 
 
-;TODO: Load rest of file if it spans multiple clusters
 loadFile:
     push si
     call loadFAT
