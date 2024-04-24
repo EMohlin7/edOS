@@ -1,14 +1,17 @@
+#include "printf.h"
 #include <stdarg.h>
 #include "display.h"
 
 #define NUM_MAX_CHARS 20
 
 //Flags
-#define LEFT_JUST   1
-#define SIGN        (1 << 1)
-#define NO_SIGN     (1 << 2)
-#define HASH        (1 << 3)
-#define PAD_ZEROS   (1 << 4)
+#define LEFT_JUST       1
+#define SIGN            (1 << 1)
+#define NO_SIGN         (1 << 2)
+#define HASH            (1 << 3)
+#define PAD_ZEROS       (1 << 4)
+#define USE_PRECISION   (1 << 5) //Used to signal that the precision value should be used
+#define DBL_TOKEN(x)    ((x << 8) + x)
 
 typedef enum token{
     CHAR,
@@ -30,22 +33,21 @@ typedef enum length{
 
 typedef struct format{
     uint64_t width;
-    int64_t precision;
+    uint64_t precision;
     Length length;
     uint8_t flags;
     char spec;
 } Format;
 
-Token lookahead;
-uint64_t tokenValue;
-int index;
-const char* string;
+static Token lookahead;
+static uint64_t tokenValue;
+static int index;
+static const char* string;
 
-
-char lengths[] = {'h', 'l', 0};
-char flags[] = {'-', '+', ' ', '#', '0', 0};
-char specifiers[] = {'d', 'i', 'u', 'o', 'x', 'X', 'c', 's', 'p', 'n', 0};
-char numbers[] = "0123456789";
+static char lengths[] = {'h', 'l', 0};
+static char flags[] = {'-', '+', ' ', '#', '0', 0};
+static char specifiers[] = {'d', 'i', 'u', 'o', 'x', 'X', 'c', 's', 'p', 'n', 0};
+static char numbers[] = "0123456789";
 
 
 static char find(char c, char* arr){
@@ -57,7 +59,7 @@ static char find(char c, char* arr){
 }
 
 //Format: %[flags][width][.precision][length]specifier
-Token lex(){
+static Token lex(){
     static int isFormat = 0;
     while (1)
     {
@@ -96,12 +98,12 @@ Token lex(){
         if(find(tokenValue, lengths)){
             if(tokenValue == 'h' && string[index] == 'h'){
                 ++index;
-                tokenValue = *(uint16_t*)"hh";
+                tokenValue = DBL_TOKEN('h');
                 return LENGTH;
             }
             else if(tokenValue == 'l' && string[index] == 'l'){
                 ++index;
-                tokenValue == *(uint16_t*)"ll";
+                tokenValue = DBL_TOKEN('l');
                 return LENGTH;
             }
 
@@ -115,7 +117,7 @@ Token lex(){
     }
 }
 
-void match(Token token){
+static void match(Token token){
     if(lookahead == token){
         lookahead = lex();
     }else{
@@ -124,7 +126,7 @@ void match(Token token){
     }
 }
 
-uint64_t text(uint64_t printed){
+static uint64_t text(uint64_t printed){
 
     if(lookahead == CHAR){
         char c = tokenValue;
@@ -139,7 +141,7 @@ uint64_t text(uint64_t printed){
     return printed;
 }
 
-uint8_t flag(uint8_t flags){
+static uint8_t flag(uint8_t flags){
     if(lookahead == FLAG){
         switch(tokenValue){
             case '-':
@@ -168,7 +170,7 @@ uint8_t flag(uint8_t flags){
     return flags;
 }
 
-uint64_t width(){
+static uint64_t width(){
     uint64_t width = 0;
     if(lookahead == NUMBER){
         width = tokenValue;
@@ -177,31 +179,36 @@ uint64_t width(){
     return width;
 }
 
-int64_t precision(){
-    int64_t precision = -1;
+static uint64_t precision(uint8_t* flags){
+    uint64_t precision = 0;
     if(lookahead == DOT){
         match(DOT); 
         if(lookahead == NUMBER){
-            if(tokenValue > INT64_MAX)
-                precision = INT64_MAX;
-            else    
                 precision = tokenValue;
             match(NUMBER);
         }
-        else{
-            precision = 0;
-        }
+        
+        *flags |= USE_PRECISION;
     }
     return precision;
 }
 
-Length length(){
+static Length length(){
     Length length = integer;
     if(lookahead == LENGTH){
         switch (tokenValue)
         {
         case 'h':
-            /* code */
+            length = shortInt;
+            break;
+        case DBL_TOKEN('h'):
+            length = character;
+            break;
+        case 'l':
+            length = longInt;
+            break;
+        case DBL_TOKEN('l'):
+            length = longInt;
             break;
         
         default:
@@ -212,27 +219,15 @@ Length length(){
     return length;
 }
 
+
 static uint64_t preceedingChars(int64_t val, uint64_t numChars, const Format* f){
     uint64_t printed = 0;
 
-    if(val < 0){
-        val = -val;
-        if(!(f->flags&NO_SIGN)){
-            print('-');
-        }
-        else{
-            print(' ');
-        }
-        ++printed;        
-    }
-    else if(f->flags&SIGN){
-        print('+');
-        ++printed;
-    }
-    else if(f->flags&NO_SIGN){
-        print(' ');
-        ++printed;
-    }
+    //TODO: This is not true.
+    if(f->flags&USE_PRECISION && val == 0 && f->precision == 0) //Precision 0 should not print anything for the number zero
+        return 0;
+
+    
 
     if(f->flags&HASH){       
         if(f->spec == 'o'){
@@ -250,11 +245,21 @@ static uint64_t preceedingChars(int64_t val, uint64_t numChars, const Format* f)
             printed += 2;
         }
     }
+    
+    //Precision specifies minimum number of DIGITS
+    if(f->flags&USE_PRECISION && f->precision > numChars){
+        for(uint64_t i = 0; i < f->precision - numChars; ++i){
+            print('0');
+            ++printed;
+        }
+    }
 
     //Right justified
-    if(f->width > numChars && !(f->flags&LEFT_JUST)){
+    if(f->width > printed+numChars && !(f->flags&LEFT_JUST)){
+        //Width specifies minimum number of CHARACTERS
         char c = f->flags&PAD_ZEROS ? '0' : ' ';
-        for(uint64_t i = 0; i < f->width - numChars; ++i){
+        uint64_t temp = printed+numChars;
+        for(uint64_t i = 0; i < f->width - temp; ++i){
             print(c);
             ++printed;
         }
@@ -263,30 +268,8 @@ static uint64_t preceedingChars(int64_t val, uint64_t numChars, const Format* f)
     return printed;
 }
 
-
-static uint64_t printInteger(const void* orgVal, const Format* f){
-    int64_t val;
+static uint64_t printInt(uint64_t val, const Format* f, uint8_t base){
     uint64_t printed = 0;
-
-
-    if(f->length == integer){
-        val = *(int32_t*)orgVal;
-    }
-    else if(f->length == character){
-        val = *(int8_t*)orgVal;
-    }
-    else if(f->length == shortInt){
-        val = *(int16_t*)orgVal;
-    }
-    else{
-        val = *(int64_t*)orgVal;
-    }
-    if(f->precision == 0 && val == 0)
-        goto skipPrint;
-
-
-    if(val < 0)
-        val = -val;
 
     char number[NUM_MAX_CHARS];
     int i = NUM_MAX_CHARS-1;
@@ -294,18 +277,11 @@ static uint64_t printInteger(const void* orgVal, const Format* f){
     int64_t temp = val;
     do
     {
-        number[i] = (temp % 10)+48;
-        temp /= 10;
+        int64_t num = (temp % base);
+        number[i] = num+ (num < 10 ? 48 : f->spec=='X'? 55 : 87);  //Convert to ascii, including numbers bigger than 9 (for hexadecimal)
+        temp /= base;
         ++numChars;
     } while (i-- > 0 && temp > 0);
-
-    if(f->precision > 0){
-        if(numChars < INT64_MAX){
-            for(; (int64_t)numChars < f->precision; ++numChars){
-                number[i--] = '0'; 
-            }
-        }
-    }
     i += 1;
 
     printed = preceedingChars(val, numChars, f);
@@ -315,33 +291,158 @@ static uint64_t printInteger(const void* orgVal, const Format* f){
     }
 
     //Left justified
-    if(f->flags&LEFT_JUST && f->width > numChars){
+    //Width specifies minimum number of CHARACTERS
+    if(f->flags&LEFT_JUST && f->width > printed){
         char c = f->flags&PAD_ZEROS ? '0' : ' ';
-        for(uint64_t i = 0; i < f->width - numChars; ++i){
+        uint64_t temp = printed;
+        for(uint64_t i = 0; i < f->width - temp; ++i){
             print(c);
             ++printed;
         }
     }
 
-skipPrint:
     return printed;
 }
 
-uint64_t format(uint64_t printed){
+static uint64_t printUnsignedInt(va_list argptr, const Format* f, uint8_t base){
+    uint64_t val;
+    uint64_t printed = 0;
+
+
+    if(f->length == longInt){
+        val = va_arg(argptr, unsigned long int);
+    }
+    else{
+        //Everything smaller than int is promoted to int when passed through '...'
+        val = va_arg(argptr, unsigned int);
+    }
+
+    if(f->flags&SIGN){
+        print('+');
+        ++printed;
+    }
+    else if(f->flags&NO_SIGN){
+        print(' ');
+        ++printed;
+    }
+
+    return printInt(val, f, base);
+}
+
+static uint64_t printInteger(va_list argptr, const Format* f){
+    int64_t val = 0;
+    uint64_t printed = 0;
+
+    if(f->length == longInt){
+        val = va_arg(argptr, long int);
+    }
+    else{
+        //Everything smaller than int is promoted to int when passed through '...'
+        val = va_arg(argptr, int);
+    }
+   
+    if(val < 0){
+        val = -val;
+        print('-');
+        
+        ++printed;        
+    }
+    else if(f->flags&SIGN){
+        print('+');
+        ++printed;
+    }
+    else if(f->flags&NO_SIGN){
+        print(' ');
+        ++printed;
+    }
+
+   
+    return printInt(val, f, 10);
+}
+
+static uint64_t printString(const char* string, const Format* f){
+    uint64_t printed = 0;
+    
+    //Right justified padding
+    if(f->width > 0 && !(f->flags&LEFT_JUST)){
+        uint64_t size = 0;
+        for(; string[size] != NULL; ++size)
+            ;
+
+        if(f->width > size){
+            char c = f->flags&PAD_ZEROS ? '0' : ' ';
+            for(uint64_t i = 0; i < f->width-size; ++i){
+                print(c);
+                ++printed;
+            }
+        }
+    }
+    
+    //Print string
+    for(int i = 0; string[i] != NULL; ++i){
+        print(string[i]);
+        ++printed;
+    }
+
+    //Right justified padding
+    if(f->flags&LEFT_JUST && f->width > printed){
+        char c = f->flags&PAD_ZEROS ? '0' : ' ';
+        for(uint64_t i = 0; i < f->width-printed; ++i){
+            print(c);
+            ++printed;
+        }
+    }
+    return printed;
+}
+
+static uint64_t printCharacter(int value, const Format* f){
+    char c[2] = {(char)value, 0};
+    return printString(c, f);
+}
+
+static uint64_t format(uint64_t printed, va_list argptr){
     Format f;
     if(lookahead == BEGIN){
-        match(BEGIN); f.flags=flag(0); f.width=width(); f.precision=precision(); f.length=length(); 
+        match(BEGIN); f.flags=flag(0); f.width=width(); f.precision=precision(&(f.flags)); f.length=length(); 
         char spec = tokenValue;
         f.spec = spec;
         match(SPECIFIER);
-        int val = 235;
+        
+
+        #define SIGNED() printed += printInteger(argptr, &f)
+        #define USIGNED(x) printed += printUnsignedInt(argptr, &f, x)
         switch (spec)
         {
         case 'd':
-            printed += printInteger(&val, &f);
+            SIGNED();
             break;
         case 'i':
-            printed += printInteger(&val, &f);
+            SIGNED();
+            break;
+        case 'u':
+            USIGNED(10);
+            break;
+        case 'x':
+            USIGNED(16);
+            break;
+        case 'X':
+            USIGNED(16);
+            break;
+        case 'o':
+            USIGNED(8);
+            break;
+        case 'p':
+            f.spec = 'x';
+            f.length = longInt;
+            USIGNED(16);
+            break;
+        case 's': ;
+            char* s = va_arg(argptr, char*);
+            printed += printString(s, &f);
+            break;
+        case 'c': ;
+            int c = va_arg(argptr, int);
+            printed += printCharacter(c, &f);
             break;
         default:
             break;
@@ -351,25 +452,28 @@ uint64_t format(uint64_t printed){
     return printed;
 }
 
-uint64_t list(uint64_t printed){
+static uint64_t list(uint64_t printed, va_list argptr){
     if(lookahead == CHAR || lookahead == BEGIN){
-        printed = text(printed); printed = format(printed); printed = list(printed);
+        printed = text(printed); printed = format(printed, argptr); printed = list(printed, argptr);
     }
     return printed;
 }
 
 
-uint64_t parse(const char* text){
+static uint64_t parse(const char* text, va_list argptr){
     index = 0;
     string = text;
     lookahead = lex();
-    uint64_t printed = list(0); match(END);
+    uint64_t printed = list(0, argptr); match(END);
     return printed;
 }
 
 
 
-uint64_t printf(const char* format){
-    
-    return parse(format);    
+uint64_t printf(const char* format, ...){
+    va_list argptr;
+    va_start(argptr, format);
+    uint64_t printed = parse(format, argptr);    
+    va_end(argptr);
+    return printed;
 }

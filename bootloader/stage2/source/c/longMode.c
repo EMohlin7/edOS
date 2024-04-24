@@ -1,7 +1,7 @@
 #include <stdint.h>
+#include "printf.h"
 #define VID_MEM (short*)0xB8000
 
-uint64_t printf(const char* format);
 
 __attribute__((noreturn))
 void longMode(){
@@ -9,6 +9,6 @@ void longMode(){
 
     //char string[] = \nHej";
 
-    printf("Hejasna balooogas%-+05d!");
+    printf(" %ld", printf("Hejsan!%#.4x", 3500));
     while(1);
 }
