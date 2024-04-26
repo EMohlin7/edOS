@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include "printf.h"
-#include "display.h";
+#include "display.h"
 
 
 __attribute__((noreturn))
