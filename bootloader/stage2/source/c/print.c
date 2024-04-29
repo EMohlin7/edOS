@@ -41,7 +41,7 @@ typedef struct format{
 
 static Token lookahead;
 static uint64_t tokenValue;
-static int index;
+static uint64_t index;
 static const char* string;
 
 static char lengths[] = {'h', 'l', 0};
