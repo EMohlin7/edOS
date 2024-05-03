@@ -1,4 +1,9 @@
+BIN = build/bootloader.bin
 
-build/bootloader.bin: bootloader.s
+${BIN}: bootloader.s
 	mkdir -p build
 	yasm -f bin -o $@ $^
+
+.PHONY: clean
+clean:
+	rm ${BIN}
