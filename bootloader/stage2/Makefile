@@ -1,7 +1,10 @@
+ELF = build/stage2.elf
+SYMS = build/stage2.sym
 BIN = build/stage2.bin
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -DNULL=0 -Iinclude
+LINK = ld
+CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -c -g -DNULL=0 -Iinclude
 
 ODIR = build/objects
 
@@ -11,45 +14,47 @@ ASMO = entry.o
 	
 CSRC_DIR = source/c
 CSRC = pageTable.c
-COBJ = pageTable.o longMode.o print.o display.o
+COBJ = longMode.o print.o display.o pageTable.o  
 
-OBJS = ${ASMO} ${COBJ}
+OBJS = ${COBJ} ${ASMO} 
 
 VPATH=${CSRC_DIR}:${ASMS_DIR}:${ODIR}
 
+${BIN}: ${ELF}
+	objcopy --only-keep-debug $^ ${SYMS}
+	objcopy -O binary $^ $@
 
 
-${BIN}: ${OBJS}
-	${CC} ${CFLAGS} -o $@ $^ -T stage2.ld
+${ELF}: ${OBJS}
+	${LINK} -o $@ $^ -T stage2.ld
 
 
 ${ODIR}/entry.o: entry.s
 	mkdir -p ${ODIR}
-	yasm -f elf64 $< -o $@
+	yasm -f elf64 -g dwarf2 $< -o $@
 
 ${ODIR}/longMode.o: longMode.c
 	mkdir -p ${ODIR}
-	${CC} ${CFLAGS} -c -o $@ $^
+	${CC} ${CFLAGS} -o $@ $^
 
 ${ODIR}/print.o: print.c
 	mkdir -p ${ODIR}
-	${CC} ${CFLAGS} -c -o $@ $^
+	${CC} ${CFLAGS} -o $@ $^
 
 ${ODIR}/display.o: display.c
 	mkdir -p ${ODIR}
-	${CC} ${CFLAGS} -c -o $@ $^
+	${CC} ${CFLAGS} -o $@ $^
 
 
 ${ODIR}/pageTable.o: pageTable.c
 	mkdir -p ${ODIR}
-	${CC} ${CFLAGS} -m32 -S -O0 -o temp.s $^
+	${CC} ${CFLAGS} -m32 -S -o temp.s $^
 	echo '.code32' | cat - temp.s > temp && mv temp temp.s
-	${CC} ${CFLAGS} -c -o $@ temp.s
+	${CC} ${CFLAGS} -o $@ temp.s
 	rm temp.s
 
 
 
 .PHONY: clean
 clean:
-	rm ${ODIR}/*
-	rm ${BIN}
+	rm build/* -r

@@ -5,9 +5,6 @@ SECTORS=1048576
 SECTORS_HEX='\xFF\xFF\x0F\x00'
 SECTOR_SIZE=512
 
-sudo umount img
-sudo losetup -d "/dev/loop$1"
-
 if test -e $OF; then
     rm $OF
 fi
@@ -31,13 +28,15 @@ dd if=${BOOTLOADER} conv=notrunc bs=1 count=422 seek=$(($START+90)) of=$OF
 #Copy to backup sector
 dd if=${BOOTLOADER} conv=notrunc bs=1 count=422 seek=$(($START+90+6*$SECTOR_SIZE)) of=$OF
 
+#Mount image file and add stage2 to the file system
+loop=$(losetup -f)
+echo Using loop device: $loop
 
-
-sudo losetup -P /dev/loop$1 $OF
-sudo mount /dev/loop$1"p1" img
-
+sudo losetup -P  $loop $OF
+sudo mount -o sync $loop"p1" img
 
 sudo cp bootloader/stage2/build/stage2.bin img
 
-
+sudo umount img
+sudo losetup -d $loop
 
