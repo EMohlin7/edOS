@@ -6,6 +6,6 @@
 __attribute__((noreturn))
 void longMode(){
     clearScreen();
-    printf("Long mode enabled");
+    printf("Long mode enabled\n");
     while(1);
 }
