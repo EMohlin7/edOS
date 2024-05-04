@@ -10,7 +10,7 @@ ODIR = build/objects
 
 ASMS_DIR = source/asm
 ASMS = entry.s 
-ASMO = entry.o 
+ASMO = entry.o memcpy.o
 	
 CSRC_DIR = source/c
 CSRC = pageTable.c
@@ -32,6 +32,10 @@ ${ELF}: ${OBJS}
 ${ODIR}/entry.o: entry.s
 	mkdir -p ${ODIR}
 	yasm -f elf64 -g dwarf2 $< -o $@
+
+${ODIR}/memcpy.o: memcpy.s
+	mkdir -p ${ODIR}
+	yasm -f elf64 -g dwarf2 $^ -o $@
 
 ${ODIR}/longMode.o: longMode.c
 	mkdir -p ${ODIR}
