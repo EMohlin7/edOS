@@ -4,17 +4,17 @@ BIN = build/stage2.bin
 
 CC = gcc
 LINK = ld
-CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -c -g -DNULL=0 -Iinclude
+CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -c -masm=intel -g -DNULL=0 -Iinclude
 
 ODIR = build/objects
 
 ASMS_DIR = source/asm
 ASMS = entry.s 
-ASMO = entry.o memcpy.o
+ASMO = entry.o memcpy.o idt_s.o
 	
 CSRC_DIR = source/c
 CSRC = pageTable.c
-COBJ = longMode.o print.o display.o pageTable.o  
+COBJ = longMode.o print.o display.o pageTable.o stdlib.o interrupts.o
 
 OBJS = ${COBJ} ${ASMO} 
 
@@ -29,6 +29,7 @@ ${ELF}: ${OBJS}
 	${LINK} -o $@ $^ -T stage2.ld
 
 
+#Assembly code
 ${ODIR}/entry.o: entry.s
 	mkdir -p ${ODIR}
 	yasm -f elf64 -g dwarf2 $< -o $@
@@ -36,6 +37,16 @@ ${ODIR}/entry.o: entry.s
 ${ODIR}/memcpy.o: memcpy.s
 	mkdir -p ${ODIR}
 	yasm -f elf64 -g dwarf2 $^ -o $@
+
+${ODIR}/idt_s.o: idt.s
+	mkdir -p ${ODIR}
+	yasm -f elf64 -g dwarf2 $^ -o $@
+
+
+#C code
+${ODIR}/stdlib.o: stdlib.c
+	mkdir -p ${ODIR}
+	${CC} ${CFLAGS} -o $@ $^
 
 ${ODIR}/longMode.o: longMode.c
 	mkdir -p ${ODIR}
@@ -49,6 +60,9 @@ ${ODIR}/display.o: display.c
 	mkdir -p ${ODIR}
 	${CC} ${CFLAGS} -o $@ $^
 
+${ODIR}/interrupts.o: interrupts.c
+	mkdir -p ${ODIR}
+	${CC} ${CFLAGS} -o $@ $^
 
 ${ODIR}/pageTable.o: pageTable.c
 	mkdir -p ${ODIR}

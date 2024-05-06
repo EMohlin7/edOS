@@ -32,10 +32,8 @@ PM:
     mov eax, PML4_ADDRESS         
     push eax    
     call setupPageTable
-    pop eax                 ;Pop parameter from stack
 
 ;Enable long mode
-;eax holds PML4-address
 elm:
     ;enable PAE
     mov eax, cr4
