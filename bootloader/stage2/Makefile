@@ -3,22 +3,33 @@ SYMS = build/stage2.sym
 BIN = build/stage2.bin
 
 CC = gcc
-LINK = ld
 CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -c -masm=intel -g -DNULL=0 -Iinclude
+ASMC = yasm
+ASMFLAGS = -f elf64 -g dwarf2
+LINK = ld
+LD_SCRIPT = stage2.ld
 
 ODIR = build/objects
 
 ASMS_DIR = source/asm
-ASMS = entry.s 
-ASMO = entry.o memcpy.o idt_s.o
-	
+ASMS = entry.s idt.s
+ASMO_DIR = ${ODIR}/asm
+ASMO := $(ASMS:.s=.o)
+
+
+C32S = pageTable.c
+C32O_DIR = ${ODIR}/c32
+C32O := $(C32S:.c=.o)
+
+
 CSRC_DIR = source/c
-CSRC = pageTable.c
-COBJ = longMode.o print.o display.o pageTable.o stdlib.o interrupts.o
+CSRC = longMode.c print.c display.c stdlib.c interrupts.c
+COBJ_DIR = ${ODIR}/c
+COBJ := $(CSRC:.c=.o)
 
-OBJS = ${COBJ} ${ASMO} 
 
-VPATH=${CSRC_DIR}:${ASMS_DIR}:${ODIR}
+OBJS = $(addprefix ${COBJ_DIR}/, ${COBJ}) $(addprefix ${C32O_DIR}/, ${C32O}) $(addprefix ${ASMO_DIR}/, ${ASMO}) 
+
 
 ${BIN}: ${ELF}
 	objcopy --only-keep-debug $^ ${SYMS}
@@ -26,51 +37,27 @@ ${BIN}: ${ELF}
 
 
 ${ELF}: ${OBJS}
-	${LINK} -o $@ $^ -T stage2.ld
+	${LINK} -o $@ $^ -T ${LD_SCRIPT}
 
 
 #Assembly code
-${ODIR}/entry.o: entry.s
-	mkdir -p ${ODIR}
-	yasm -f elf64 -g dwarf2 $< -o $@
-
-${ODIR}/memcpy.o: memcpy.s
-	mkdir -p ${ODIR}
-	yasm -f elf64 -g dwarf2 $^ -o $@
-
-${ODIR}/idt_s.o: idt.s
-	mkdir -p ${ODIR}
-	yasm -f elf64 -g dwarf2 $^ -o $@
+${ASMO_DIR}/%.o: ${ASMS_DIR}/%.s
+	mkdir -p ${ASMO_DIR}
+	${ASMC} ${ASMFLAGS} $^ -o $@
 
 
-#C code
-${ODIR}/stdlib.o: stdlib.c
-	mkdir -p ${ODIR}
+#32-bit c code
+${C32O_DIR}/%.o: ${CSRC_DIR}/%.c
+	mkdir -p ${C32O_DIR}
+	${CC} ${CFLAGS} -m32 -S -o $@_temp.s $^
+	echo '.code32' | cat - $@_temp.s > $@_temp && mv $@_temp $@_temp.s
+	${CC} ${CFLAGS} -o $@ $@_temp.s
+	rm $@_temp.s
+
+#c code
+${COBJ_DIR}/%.o: ${CSRC_DIR}/%.c
+	mkdir -p ${COBJ_DIR}
 	${CC} ${CFLAGS} -o $@ $^
-
-${ODIR}/longMode.o: longMode.c
-	mkdir -p ${ODIR}
-	${CC} ${CFLAGS} -o $@ $^
-
-${ODIR}/print.o: print.c
-	mkdir -p ${ODIR}
-	${CC} ${CFLAGS} -o $@ $^
-
-${ODIR}/display.o: display.c
-	mkdir -p ${ODIR}
-	${CC} ${CFLAGS} -o $@ $^
-
-${ODIR}/interrupts.o: interrupts.c
-	mkdir -p ${ODIR}
-	${CC} ${CFLAGS} -o $@ $^
-
-${ODIR}/pageTable.o: pageTable.c
-	mkdir -p ${ODIR}
-	${CC} ${CFLAGS} -m32 -S -o temp.s $^
-	echo '.code32' | cat - temp.s > temp && mv temp temp.s
-	${CC} ${CFLAGS} -o $@ temp.s
-	rm temp.s
-
 
 
 .PHONY: clean

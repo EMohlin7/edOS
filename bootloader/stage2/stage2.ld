@@ -5,7 +5,7 @@ SECTIONS
     . = 0x7e00;
     .text :
     {
-        build/objects/entry.o(.text)
+        build/objects/asm/entry.o(.text)
         *(.text)
     }
     .data : {*(.data)}
