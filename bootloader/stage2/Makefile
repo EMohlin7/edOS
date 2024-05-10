@@ -16,7 +16,7 @@ ASMS = entry.s idt.s
 ASMO_DIR = ${ODIR}/asm
 ASMO := $(ASMS:.s=.o)
 
-
+C32S_DIR = source/c
 C32S = pageTable.c
 C32O_DIR = ${ODIR}/c32
 C32O := $(C32S:.c=.o)
@@ -47,7 +47,7 @@ ${ASMO_DIR}/%.o: ${ASMS_DIR}/%.s
 
 
 #32-bit c code
-${C32O_DIR}/%.o: ${CSRC_DIR}/%.c
+${C32O_DIR}/%.o: ${C32S_DIR}/%.c
 	mkdir -p ${C32O_DIR}
 	${CC} ${CFLAGS} -m32 -S -o $@_temp.s $^
 	echo '.code32' | cat - $@_temp.s > $@_temp && mv $@_temp $@_temp.s
