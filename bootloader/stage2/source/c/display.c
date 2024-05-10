@@ -52,7 +52,7 @@ void scroll(int lines){
         memcpy(dest, src, NUM_COLUMNS+2);
 
         //Clear line
-        memcpyConst(src, NULL, NUM_COLUMNS*2);
+        memset(src, NULL, NUM_COLUMNS*2);
     }
     setCursorPos(cursorPos + NUM_COLUMNS*lines);
     lines = abs(lines);

@@ -48,7 +48,7 @@ void setIDTEntry(uint8_t vectorNum, void* isrP, uint8_t ist, uint8_t gate, uint8
 }
 
 void initIDT(void){
-    memcpyConst(vectors, NULL, sizeof(vectors));
+    memset(vectors, NULL, sizeof(vectors));
 
     for(int i = 0; i < 32; ++i){
         setIDTEntry(i, isrTable[i], 0, INTERRUPT_GATE, 0, true);

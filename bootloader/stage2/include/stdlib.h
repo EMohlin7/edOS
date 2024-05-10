@@ -24,7 +24,7 @@ typedef _Bool bool;
         )
 
 /// @brief Copies the same byte n times to the array pointed to by dest
-#define memcpyConst(dest, byte, n)                          \
+#define memset(dest, byte, n)                          \
     __asm__("mov al, %0\n\t"                                \
             "mov rdi, %1\n\t"                               \
             "mov rcx, %2\n\t"                               \
