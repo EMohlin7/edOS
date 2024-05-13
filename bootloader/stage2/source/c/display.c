@@ -31,10 +31,7 @@ void setCursorPos(uint64_t pos){
 }
 
 void clearScreen(){
-    for(int i = 0; i < NUM_COLUMNS*NUM_ROWS; ++i){
-        uint16_t* mem = VID_MEM;
-        mem[i] = NULL;
-    }
+    memset(VID_MEM, NULL, NUM_COLUMNS*NUM_ROWS*2);
 }
 
 //TODO: Fix so that you can't scroll to far. Also implement scrolling up.

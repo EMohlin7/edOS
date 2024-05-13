@@ -8,6 +8,6 @@
 //https://wiki.osdev.org/Interrupt_Descriptor_Table
 void setIDTEntry(uint8_t vectorNum, void* isrP, uint8_t ist, uint8_t gate, uint8_t privilege, _Bool present);
 
-void initIDT(void);
+void initInterrupts(void);
 
 #endif //IDT_H

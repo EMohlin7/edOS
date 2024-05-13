@@ -1,6 +1,7 @@
 #include "interrupts.h"
 #include "printf.h"
 #include "stdlib.h"
+#include "sysInfo.h"
 
 #define KERNEL_CODE_SEGMENT 8
 
@@ -12,8 +13,8 @@ typedef struct {
 typedef struct {
 	uint16_t    isr_low;      // The lower 16 bits of the ISR's address
 	uint16_t    kernel_cs;    // The GDT segment selector that the CPU will load into CS before calling the ISR
-	uint8_t	    ist;          // The IST in the TSS that the CPU will load into RSP; set to zero for now
-	uint8_t     flags;        // Type and attributes; see the IDT page
+	uint8_t	    ist;          // The IST in the TSS that the CPU will load into RSP
+	uint8_t     flags;        // Type and attributes
 	uint16_t    isr_mid;      // The higher 16 bits of the lower 32 bits of the ISR's address
 	uint32_t    isr_high;     // The higher 32 bits of the ISR's address
 	uint32_t    reserved;     // Set to zero
@@ -58,14 +59,33 @@ void initIDT(void){
     idtr.base = (uint64_t)vectors;
     printf("Loading IDT at address %p\n", (void*)vectors);
     __asm__("lidt %0" :/*No output*/ : "m" (idtr));
-    
+}
+
+void setupAPIC(void){
+    uint32_t edx, _;
+    cpuId(1, &_, &edx, &_);
+    //Bit 9 in edx tell if processor has local APIC
+    if(edx & (1 << 8)){
+        printf("Local APIC supported\n");
+    }else{
+        printf("Local APIC is not supported. Halting...");
+        halt();
+    }
+
     //Disable PIC
     __asm__("mov al, 0xFF\n\t"  \
             "outb 0x21, al\n\t" \
             "outb 0xA1, al"     \
-            :                   \
-            :                   \
-            : "al");
+            : /*No output*/ : /*No input*/ : "al");
+
+    
+
+    
+}
+
+void initInterrupts(void){
+    setupAPIC();
+    initIDT();
 
     //Enable interrupts
     __asm__("sti");
