@@ -274,10 +274,10 @@ static uint64_t printInt(uint64_t val, const Format* f, uint8_t base){
     char number[NUM_MAX_CHARS];
     int i = NUM_MAX_CHARS-1;
     uint64_t numChars = 0;
-    int64_t temp = val;
+    uint64_t temp = val;
     do
     {
-        int64_t num = (temp % base);
+        uint64_t num = (temp % base);
         number[i] = num+ (num < 10 ? 48 : f->spec=='X'? 55 : 87);  //Convert to ascii, including numbers bigger than 9 (for hexadecimal)
         temp /= base;
         ++numChars;
