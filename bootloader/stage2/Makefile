@@ -12,7 +12,7 @@ LD_SCRIPT = stage2.ld
 ODIR = build/objects
 
 ASMS_DIR = source/asm
-ASMS = entry.s idt.s
+ASMS = entry.s idt.s mem.s
 ASMO_DIR = ${ODIR}/asm
 ASMO := $(ASMS:.s=.o)
 

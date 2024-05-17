@@ -9,6 +9,8 @@ void longMode(){
     printSysInfo();
     initInterrupts();
     printf("Interrupts enabled\n");
-    printf("Memcmp test: %d\n", memcmp("Hejsan test", "Hejsan test", 11));
+
+    __asm__("int 31");
+
     halt();
 }

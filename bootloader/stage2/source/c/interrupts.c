@@ -4,6 +4,7 @@
 #include "sysInfo.h"
 
 #define KERNEL_CODE_SEGMENT 8
+#define EBDA_ADDR 0x80000
 
 typedef struct {
 	uint16_t	size;
@@ -20,11 +21,11 @@ typedef struct {
 	uint32_t    reserved;     // Set to zero
 } __attribute__((packed)) idt_entry_t;
 
+
+
 static idtr_t idtr;
 static idt_entry_t vectors[256];
 extern void* isrTable[];
-
-
 
 
 void defaultISR(uint8_t vector, uint64_t error){
@@ -61,6 +62,43 @@ void initIDT(void){
     __asm__("lidt %0" :/*No output*/ : "m" (idtr));
 }
 
+
+typedef struct {
+    char signature[8];
+    uint8_t checksum;
+    char OEMID[6];
+    uint8_t revision;
+    uint32_t rsdtAddress;
+} __attribute__ ((packed)) RSDP;
+
+typedef struct{
+    RSDP rsdp;
+
+    uint32_t Length;
+    uint64_t XsdtAddress;
+    uint8_t ExtendedChecksum;
+    uint8_t reserved[3];
+} __attribute__ ((packed)) XSDP;
+
+/// @brief Finds the rsdp
+/// @return Returns the root system directory pointer. NULL if the pointer couldn't be found
+static RSDP* findRSDP(){
+    char id[8] = "RSD PTR ";
+    //Search first KB of EBDA for the RSDP. The RSDP is 16 byte aligned
+    for(uint64_t ptr = EBDA_ADDR; ptr < EBDA_ADDR+1024; ptr += 16){
+        if(memcmp((RSDP*)ptr, id, 8) == 0)
+            return (RSDP*)ptr;
+    }
+    
+    for(uint64_t ptr = 0xE0000; ptr < 0xFFFFF; ptr +=16){
+        if(memcmp((RSDP*)ptr, id, 8) == 0)
+            return (RSDP*)ptr;
+    }
+
+    return NULL;
+}
+
+
 void setupAPIC(void){
     uint32_t edx, _;
     cpuId(1, &_, &edx, &_);
@@ -79,13 +117,25 @@ void setupAPIC(void){
             : /*No output*/ : /*No input*/ : "al");
 
     
+    RSDP* rsdp = findRSDP();
+    if(rsdp == NULL){
+        printf("No RSDP found, halting...\n");
+        halt();
+    }
 
-    
+    if(rsdp->revision == 0){
+        printf("ACPI version 1.0");
+    }else{
+        printf("ACPI version 2.0");
+    }
+
+    printf("rsdt address: %#x\n", rsdp->rsdtAddress);
+    printf("OEMID: %s\n", rsdp->OEMID);
 }
 
 void initInterrupts(void){
-    setupAPIC();
     initIDT();
+    setupAPIC();
 
     //Enable interrupts
     __asm__("sti");
