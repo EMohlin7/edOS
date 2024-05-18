@@ -2,9 +2,26 @@
 
 extern setupPageTable
 extern longMode
+
+global memoryMap
+
 SECTION .text
 BITS 16
 start:
+    mov di, memoryMap
+    xor ebx, ebx
+    memMap:
+        mov edx, 0x534D4150     ;Set edx to magic number
+        mov eax, 0xE820         ;Set interrupt argument
+        mov ecx, 24             ;Magic number
+        int 0x15
+        jc memMapComplete
+        test ebx, ebx
+        jz memMapComplete
+        add di, 24
+        jmp memMap
+
+memMapComplete:
     cli
     ;TODO: Check if already in protected mode first
     ;Enable protected mode
@@ -13,6 +30,14 @@ start:
     or eax, 1               ;Set Protected mode enabled bit
     mov cr0, eax
     jmp 0x0008:PM
+
+;50 entries 24 bytes each
+memoryMap:
+    %rep 50
+        dq 0
+        dq 0
+        dq 0
+    %endrep
 
 BITS 32
 PM:
