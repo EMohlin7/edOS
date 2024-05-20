@@ -59,8 +59,11 @@ static char find(char c, char* arr){
 }
 
 //Format: %[flags][width][.precision][length]specifier
-static Token lex(){
+static Token lex(int reset){
     static int isFormat = 0;
+    if(reset) 
+        isFormat = 0;
+    
     while (1)
     {
         tokenValue = string[index++];
@@ -119,7 +122,7 @@ static Token lex(){
 
 static void match(Token token){
     if(lookahead == token){
-        lookahead = lex();
+        lookahead = lex(0);
     }else{
         //error
         while(1);
@@ -463,7 +466,7 @@ static uint64_t list(uint64_t printed, va_list argptr){
 static uint64_t parse(const char* text, va_list argptr){
     index = 0;
     string = text;
-    lookahead = lex();
+    lookahead = lex(1);
     uint64_t printed = list(0, argptr); match(END);
     return printed;
 }
