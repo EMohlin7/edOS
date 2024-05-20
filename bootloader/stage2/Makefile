@@ -23,7 +23,7 @@ C32O := $(C32S:.c=.o)
 
 
 CSRC_DIR = source/c
-CSRC = longMode.c print.c display.c stdlib.c interrupts.c sysInfo.c
+CSRC = longMode.c print.c display.c stdlib.c interrupts.c sysInfo.c vmm.c
 COBJ_DIR = ${ODIR}/c
 COBJ := $(CSRC:.c=.o)
 
