@@ -82,7 +82,7 @@ typedef struct{
 
 /// @brief Finds the rsdp
 /// @return Returns the root system directory pointer. NULL if the pointer couldn't be found
-static RSDP* findRSDP(){
+static RSDP* findRSDP(void){
     char id[8] = "RSD PTR ";
     //Search first KB of EBDA for the RSDP. The RSDP is 16 byte aligned
     for(uint64_t ptr = EBDA_ADDR; ptr < EBDA_ADDR+1024; ptr += 16){
