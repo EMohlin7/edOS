@@ -30,13 +30,35 @@ void* getPT(uint32_t index){
     adrs += PDOFFset << 12;
 
     //Set 12 last bits to zero (Page offset)
-    adrs &= ~0xFFF;
+    //adrs &= ~0xFFF;
 
     return (PT_t*)adrs;
 }
 
 
+void* getPD(uint32_t index){
+    uint64_t adrs = 0xFFFFFFFFC0000000;
+    uint64_t PML4Offset = index / 512;
+    uint64_t PDPOffset = index % 512;
 
+    adrs += PML4Offset << 21;
+    adrs += PDPOffset << 12;
+
+    return (PT_t*)adrs;
+}
+
+void* getPDP(uint16_t index){
+    uint64_t adrs = 0xFFFFFFFFFFE00000;
+    uint64_t PML4Offset = index % 512;
+
+    adrs += PML4Offset << 12;
+
+    return (PT_t*)adrs;
+}
+
+void* getPML4(){
+    return (PT_t*)~0xFFF;
+}
 
 
 void* mapPage(uint64_t physAddress, uint64_t numPages, uint16_t flags){
