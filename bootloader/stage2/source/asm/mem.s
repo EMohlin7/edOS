@@ -7,7 +7,6 @@ memcpy:
     rep movsb 
     ret
 
-;global memcpyConst
 ;void memset(void* dest, uint8_t val, uint64_t n)
 global memset
 memset:
@@ -25,7 +24,7 @@ memcmp:
     repe cmpsb
     dec rdi
     dec rsi
-    movzx eax, byte [rdi]
+    movzx rax, byte [rdi]
     movzx rdx, byte [rsi]
     sub rax, rdx
     ret

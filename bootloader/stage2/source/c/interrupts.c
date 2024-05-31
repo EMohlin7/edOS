@@ -2,6 +2,7 @@
 #include "printf.h"
 #include "stdlib.h"
 #include "sysInfo.h"
+#include "vmm.h"
 
 #define KERNEL_CODE_SEGMENT 8
 #define EBDA_ADDR 0x80000
@@ -124,13 +125,16 @@ void setupAPIC(void){
     }
 
     if(rsdp->revision == 0){
-        printf("ACPI version 1.0");
+        printf("ACPI version 1.0\n");
     }else{
-        printf("ACPI version 2.0");
+        printf("ACPI version 2.0\n");
     }
 
     printf("rsdt address: %#x\n", rsdp->rsdtAddress);
     printf("OEMID: %s\n", rsdp->OEMID);
+
+    void* a = mapPage(rsdp->rsdtAddress, PRESENT | R_W, 0);
+    printf("Mapped address: %p\n", a);
 }
 
 void initInterrupts(void){

@@ -1,6 +1,7 @@
 %define FAT_POS 0x500
 %define CLUS_POS 0x7E00
 %define MAX_SIZE 420
+%define SECTOR_SIZE 512
 
 ORG 0x7C5A
 BITS 16
@@ -9,6 +10,9 @@ SECTION .text
 start:
     call loadFile
     call enableA20
+    ;cx holds number of clusters loaded
+    mov eax, SECTOR_SIZE
+    mov bl, byte [0x7C00 + 13]             ;Load sector per cluster
     jmp CLUS_POS
     
 
@@ -77,7 +81,7 @@ ldClusters:
     mov cl, byte [0x7C00 + 13]                    ;Load sector per cluster
     push dx
     mul cl
-    mov cx, 512                                   ;Sector size
+    mov cx, SECTOR_SIZE                           ;Sector size
     mul cx 
     mov di, CLUS_POS
     add di, ax
@@ -226,35 +230,6 @@ error:
     call printString
     jmp $
 
-
-;g_GDT:
-;    ;Null descriptor
-;    dq 0                   
-;
-;    ;Code segment
-;    dw 0xffff               ;Limit bits 0-15
-;    dw 0                    ;Base bits 0-15
-;    db 0                    ;Base bits 16-23
-;    db 10011011b            ;Access byte (present, privelige bits 1-2, Descriptor type, Executable, Direction, R/W, Accessed)
-;    db 11001111b            ;Flag (Granularity, Size, Long mode, Reserved); Limit bits 16-19
-;    db 0                    ;base bits 24-31
-;
-;    ;Data segment
-;    dw 0xffff               ;Limit bits 0-15
-;    dw 0                    ;Base bits 0-15
-;    db 0                    ;Base bits 16-23
-;    db 10010011b            ;Access byte (present, privelige bits 1-2, Descriptor type, Executable, Direction, R/W, Accessed)
-;    db 11001111b            ;Flag (Granularity, Size, Long mode, Reserved); Limit bits 16-19
-;    db 0                    ;base bits 24-31
-;
-;g_GDTDesc:
-;    dw g_GDTDesc - g_GDT - 1
-;    dd g_GDT
-
-;string: db "Bootloader", 0
-
-;fatLoaded: db "Loaded FAT", 0
-                         ;
 fileName: db "STAGE2  BIN"
 
 endDir: db "End", 0

@@ -15,4 +15,6 @@ void clearScreen();
 /// @param lines How many lines to scroll. Positive values move the lines down, negative values move the lines up.
 void scroll(int lines);
 
+void initDisplay(void);
+
 #endif //DISPLAY_H

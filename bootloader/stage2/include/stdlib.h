@@ -16,7 +16,7 @@ typedef _Bool bool;
 extern void memcpy(void* dest, void* src, uint64_t n);
 
 /// @brief Copies the same byte n times to the array pointed to by dest
-extern void memset();
+extern void memset(void* dest, uint8_t val, uint64_t n);
 
 /// @brief Compares if two blocks of memory are equal
 /// @param ptr1 Pointer to the first block
@@ -27,6 +27,8 @@ extern int memcmp(void* ptr1, void* ptr2, uint64_t n);
 
 __attribute__((format(printf,1,2)))
 uint64_t printf(const char* format, ...);
+
+void* malloc(uint64_t size);
 
 static inline uint64_t abs(int64_t val){
     return val < 0 ? -val : val;

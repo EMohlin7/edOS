@@ -1,6 +1,7 @@
 %define PML4_ADDRESS 0x1000
 
 extern setupPageTable
+extern initVMM
 extern longMode
 
 global memoryMap
@@ -8,6 +9,9 @@ global memoryMap
 SECTION .text
 BITS 16
 start:
+    mov dword [sectorSize], eax
+    mov byte [sectorsPerCluster], bl
+    mov word [programClusters], cx
     mov di, memoryMap
     xor ebx, ebx
     memMap:
@@ -54,9 +58,15 @@ PM:
     mov edi, 0xB8000
     call printString
     
+
+    movzx eax, word [programClusters]
+    mul byte [sectorsPerCluster]
+    mul dword [sectorSize]
+    push eax
+
     mov eax, PML4_ADDRESS         
     push eax    
-    call setupPageTable
+    call setupPageTable;void initVMM(uint32_t PML4, uint32_t programSize)
 
 ;Enable long mode
 elm:
@@ -90,7 +100,13 @@ setSegments:
     mov es, eax 
     mov fs, eax   
     mov gs, eax 
-    mov ss, eax     
+    mov ss, eax    
+
+    movzx rax, word [programClusters]
+    mul byte [sectorsPerCluster]
+    mul dword [sectorSize]
+    mov rdi, rax
+
     jmp longMode
 
 
@@ -113,6 +129,10 @@ endPrint:
 
 SECTION .data
 string: db "Stage two loaded", 0
+
+programClusters: dw 0
+sectorsPerCluster: db 0
+sectorSize: dd 0  
 
 align 4
 PM_GDT:

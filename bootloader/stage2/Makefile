@@ -3,7 +3,7 @@ SYMS = build/stage2.sym
 BIN = build/stage2.bin
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -c -masm=intel -g -DNULL=0 -Iinclude
+CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -c -masm=intel -g -D'NULL=0' -Iinclude
 ASMC = yasm
 ASMFLAGS = -f elf64 -g dwarf2
 LINK = ld
@@ -17,13 +17,13 @@ ASMO_DIR = ${ODIR}/asm
 ASMO := $(ASMS:.s=.o)
 
 C32S_DIR = source/c
-C32S = pageTable.c
+C32S = pageTable.c 
 C32O_DIR = ${ODIR}/c32
-C32O := $(C32S:.c=.o)
+C32O := $(C32S:.c=32.o)
 
 
 CSRC_DIR = source/c
-CSRC = longMode.c print.c display.c stdlib.c interrupts.c sysInfo.c vmm.c
+CSRC = longMode.c print.c display.c stdlib.c interrupts.c sysInfo.c vmm.c pmm.c malloc.c
 COBJ_DIR = ${ODIR}/c
 COBJ := $(CSRC:.c=.o)
 
@@ -47,11 +47,12 @@ ${ASMO_DIR}/%.o: ${ASMS_DIR}/%.s
 
 
 #32-bit c code
-${C32O_DIR}/%.o: ${C32S_DIR}/%.c
+${C32O_DIR}/%32.o: ${C32S_DIR}/%.c
 	mkdir -p ${C32O_DIR}
-	${CC} ${CFLAGS} -m32 -S -o $@_temp.s $^
+	${CC} ${CFLAGS} -m32 -DBIT32 -S -o $@_temp.s $^
 	echo '.code32' | cat - $@_temp.s > $@_temp && mv $@_temp $@_temp.s
-	${CC} ${CFLAGS} -o $@ $@_temp.s
+#	${CC} ${CFLAGS} -o $@ $@_temp.s
+	-as -Z --gdwarf-2 -o $@ $@_temp.s
 	rm $@_temp.s
 
 #c code

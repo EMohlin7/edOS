@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "memory.h"
 #define PAGE_SIZE 0x1000
 #define VID_MEM (short*)0xB8000
 
@@ -6,7 +7,7 @@
 
 /// @brief Setup the initial page tables
 /// @param PML4 The physical address to place PML4 at. The rest of the tables will be placed directly following this address.
-void setupPageTable(uint32_t PML4){
+void setupPageTable(uint32_t PML4, uint32_t programSize){
     uint32_t PDP = PML4 + PAGE_SIZE;
     uint32_t PD = PDP + PAGE_SIZE;
     uint32_t PT = PD + PAGE_SIZE;
@@ -30,7 +31,8 @@ void setupPageTable(uint32_t PML4){
 
     //Map all of the entries in the pt to physical memory. First two MiB 0x0 - 0x200000-1
     uint64_t* pt = (uint64_t*)PT;
-    for(int i = 0; i < 512; ++i){
+    uint32_t numPages = NUM_PT_ENTRIES;//(PROGRAM_POS + programSize)/PAGE_SIZE + 2;
+    for(int i = 0; i < numPages; ++i){
         pt[i] = PAGE_SIZE*i + 3;
     }
 }
