@@ -14,6 +14,7 @@ start:
     mov word [programClusters], cx
     mov di, memoryMap
     xor ebx, ebx
+    ;Map the available memory
     memMap:
         mov edx, 0x534D4150     ;Set edx to magic number
         mov eax, 0xE820         ;Set interrupt argument
@@ -27,7 +28,6 @@ start:
 
 memMapComplete:
     cli
-    ;TODO: Check if already in protected mode first
     ;Enable protected mode
     lgdt [PM_GDTDesc]
     mov eax, cr0
@@ -66,7 +66,7 @@ PM:
 
     mov eax, PML4_ADDRESS         
     push eax    
-    call setupPageTable;void initVMM(uint32_t PML4, uint32_t programSize)
+    call setupPageTable;void setupPageTable(uint32_t PML4, uint32_t programSize)
 
 ;Enable long mode
 elm:
