@@ -64,6 +64,7 @@ void initIDT(void){
 }
 
 
+//https://wiki.osdev.org/RSDP
 typedef struct {
     char signature[8];
     uint8_t checksum;
@@ -81,18 +82,43 @@ typedef struct{
     uint8_t reserved[3];
 } __attribute__ ((packed)) XSDP;
 
+
+static bool checkRSDPChecksum(RSDP* rsdp){
+    uint64_t val = 0;
+    for(size_t i = 0; i < sizeof(RSDP); ++ i){
+        val += ((uint8_t*)rsdp)[i];
+    }
+    if((uint8_t)val != 0){
+        return false;
+    }
+    else if(rsdp->revision < 2){
+        return true;
+    }
+
+    //Check extended table aswell
+    val = 0;
+    for(size_t i = 0; i < sizeof(XSDP); ++ i){
+        val += ((uint8_t*)rsdp)[i];
+    }
+    if((uint8_t)val != 0){
+        return false;
+    }
+
+    return true;
+}
+
 /// @brief Finds the rsdp
-/// @return Returns the root system directory pointer. NULL if the pointer couldn't be found
+/// @return Returns the root system directory pointer. NULL if the pointer couldn't be found or the checksum was invalid
 static RSDP* findRSDP(void){
     char id[8] = "RSD PTR ";
     //Search first KB of EBDA for the RSDP. The RSDP is 16 byte aligned
     for(uint64_t ptr = EBDA_ADDR; ptr < EBDA_ADDR+1024; ptr += 16){
-        if(memcmp((RSDP*)ptr, id, 8) == 0)
+        if(memcmp((RSDP*)ptr, id, 8) == 0 && checkRSDPChecksum((RSDP*)ptr))  
             return (RSDP*)ptr;
     }
     
     for(uint64_t ptr = 0xE0000; ptr < 0xFFFFF; ptr +=16){
-        if(memcmp((RSDP*)ptr, id, 8) == 0)
+        if(memcmp((RSDP*)ptr, id, 8) == 0 && checkRSDPChecksum((RSDP*)ptr))
             return (RSDP*)ptr;
     }
 
@@ -131,7 +157,11 @@ void setupAPIC(void){
     }
 
     printf("rsdt address: %#x\n", rsdp->rsdtAddress);
-    printf("OEMID: %s\n", rsdp->OEMID);
+    //Make sure the OEMID is null ended
+    char oemid[7];
+    oemid[6] = NULL;
+    memcpy(oemid, rsdp->OEMID, 6); 
+    printf("OEMID: %s\n", oemid);
 
     void* a = mapPage(rsdp->rsdtAddress, PRESENT | R_W, 0);
     printf("Mapped address: %p\n", a);
