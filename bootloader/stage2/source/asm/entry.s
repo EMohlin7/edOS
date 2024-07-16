@@ -13,6 +13,11 @@ start:
     mov byte [sectorsPerCluster], bl
     mov word [programClusters], cx
     mov di, memoryMap
+
+    ;Set video mode
+    mov ax, 0x0003
+    int 10h
+
     xor ebx, ebx
     ;Map the available memory
     memMap:
