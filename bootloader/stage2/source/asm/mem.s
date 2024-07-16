@@ -3,7 +3,6 @@
 global memcpy
 memcpy:
     mov rcx, rdx
-    dec rcx
     rep movsb 
     ret
 
@@ -11,7 +10,6 @@ memcpy:
 global memset
 memset:
     mov rcx, rdx
-    dec rcx
     mov rax, rsi
     rep stosb
     ret
@@ -20,7 +18,6 @@ memset:
 global memcmp
 memcmp:
     mov rcx, rdx
-    dec rcx
     repe cmpsb
     dec rdi
     dec rsi
