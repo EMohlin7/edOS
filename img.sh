@@ -5,6 +5,15 @@ SECTORS=1048576
 SECTORS_HEX='\xFF\xFF\x0F\x00'
 SECTOR_SIZE=512
 
+#Compile MBR bootstrap
+make -C mbr
+
+#Compile bootloader
+make -C bootloader
+
+#Compile stage2
+make -C bootloader/stage2
+
 if test -e $OF; then
     rm $OF
 fi
