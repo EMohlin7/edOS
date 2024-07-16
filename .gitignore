@@ -10,3 +10,5 @@ debug.sh
 
 img
 *.img
+
+flash.sh
