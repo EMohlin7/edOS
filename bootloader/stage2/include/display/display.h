@@ -1,6 +1,6 @@
-#include <stdint.h>
 #ifndef DISPLAY_H
 #define DISPLAY_H
+#include <stdint.h>
 
 #define WHITE_BLACK_CHAR 0x0F
 

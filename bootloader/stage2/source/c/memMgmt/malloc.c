@@ -1,5 +1,5 @@
 #include "stdlib.h"
-#include "vmm.h"
+#include "memMgmt/vmm.h"
 
 #define BLK_SIZE 64
 #define BLKS_PER_PAGE   PAGE_SIZE/BLK_SIZE
@@ -56,7 +56,7 @@ static void* getAvailBlk(PRecord_t* record, uint8_t consecutive, uint8_t* index)
         }
     }
     *index = blk;
-    return record->page + *index*BLK_SIZE;
+    return (uint8_t*)record->page + *index*BLK_SIZE;
 }
 
 static void setBitMask(PRecord_t* record, uint8_t blkIndex, uint8_t consecutive, bool set){

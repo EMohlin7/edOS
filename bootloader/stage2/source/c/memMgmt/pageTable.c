@@ -1,8 +1,5 @@
 #include <stdint.h>
-#include "memory.h"
-#define PAGE_SIZE 0x1000
-#define VID_MEM (short*)0xB8000
-
+#include "memMgmt/vmm.h"
 //This code is compiled as 32 bit code because it is used to setup the page tables before entering long mode
 
 /// @brief Setup the initial page tables
@@ -32,7 +29,7 @@ void setupPageTable(uint32_t PML4, uint32_t programSize){
     //Map all of the entries in the pt to physical memory. First two MiB 0x0 - 0x200000-1
     uint64_t* pt = (uint64_t*)PT;
     uint32_t numPages = NUM_PT_ENTRIES;//(PROGRAM_POS + programSize)/PAGE_SIZE + 2;
-    for(int i = 0; i < numPages; ++i){
+    for(uint32_t i = 0; i < numPages; ++i){
         pt[i] = PAGE_SIZE*i + 3;
     }
 }

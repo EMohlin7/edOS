@@ -1,6 +1,6 @@
-#include "vmm.h"
+#include "memMgmt/vmm.h"
 #include "stdlib.h"
-#include "pmm.h"
+#include "memMgmt/pmm.h"
 
 typedef struct
 {
@@ -14,7 +14,7 @@ typedef struct
 } PTData_t;
 
 
-bitshared PTData_t tableData[4];
+PTData_t tableData[4];
 
 typedef enum {
     PML4Index = 0,
@@ -22,6 +22,8 @@ typedef enum {
     PDIndex = 2,
     PTIndex = 3
 } PTIndex_t;
+
+#define invalidateTLB(addrs) __asm__("invlpg [%0]" : : "r"((uint64_t)(addrs))); 
 
 //#ifdef BIT32
 
@@ -167,12 +169,7 @@ static void* addEntry(PTIndex_t index, uint64_t pAdrs, uint16_t flags, uint8_t n
             break;
     }
 
-    pAdrs = 
-    #ifdef BIT32 
-        bit32allocatePhysPage(pAdrs); 
-    #else 
-        allocatePhysPage(pAdrs); 
-    #endif
+    pAdrs = allocatePhysPage(pAdrs); 
 
     void* adrs = mapEntry(table, pAdrs, data->entries, flags, nx);
     data->entries += 1;
@@ -181,7 +178,7 @@ static void* addEntry(PTIndex_t index, uint64_t pAdrs, uint16_t flags, uint8_t n
 }
 
 
-void* multibit( mapPage(uint64_t physAddress, uint16_t flags, uint8_t nx)){
+void* mapPage(uint64_t physAddress, uint16_t flags, uint8_t nx){
     
     void* entryAdrs = addEntry(PTIndex, physAddress, flags, nx);
     void* vAdrs = etot((uint64_t) entryAdrs);
@@ -189,6 +186,28 @@ void* multibit( mapPage(uint64_t physAddress, uint16_t flags, uint8_t nx)){
     return vAdrs;
 }
 
+void umapPage(void* addrs){
+    uint64_t a = (uint64_t)addrs;
+    uint32_t index = 0; //PT index
+
+    a &= 0xfffffffff000; //Remove sign extension and physical offset
+    uint64_t ptOffset = (a >> 12) & 0x1ff;
+    uint64_t pdOffset = (a >> 21) & 0x1ff;
+    uint64_t pdpOffset = (a >> 30) & 0x1ff;
+    uint64_t PML4Offset = (a >> 39) & 0x1ff;
+
+    index = pdOffset + pdpOffset*512 + PML4Offset*512*512;
+    PT_t* pt = getPT(index);
+    uint64_t* ptEntry = &pt->entries[ptOffset];
+
+    if(*ptEntry == 0)
+        return;
+
+    *ptEntry = 0; //Clear page table entry;
+
+    tableData[PTIndex].entries -= 1;
+    invalidateTLB(addrs);
+}
 
 //#endif //BIT32
 

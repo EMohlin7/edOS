@@ -63,7 +63,7 @@ PM:
     mov edi, 0xB8000
     call printString
     
-
+    ;Calculate program size and use it as argument in setupPageTable
     movzx eax, word [programClusters]
     mul byte [sectorsPerCluster]
     mul dword [sectorSize]

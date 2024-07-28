@@ -1,4 +1,4 @@
-#include "pmm.h"
+#include "memMgmt/pmm.h"
 #include "stdint.h"
 
 #define MEMMAP_LENGTH 50
@@ -29,7 +29,7 @@ enum MemType{
 };
 
 
-bitshared MemNode_t* memList;
+MemNode_t* memList;
 
 extern MemMap_t memoryMap[MEMMAP_LENGTH];
 
@@ -108,7 +108,7 @@ void initPMM(void){
 }
 //#endif //BIT32
 
-uint64_t multibit( allocatePhysPage(uint64_t physAdrs)){
+uint64_t allocatePhysPage(uint64_t physAdrs){
     if(physAdrs == NULL){
         MemNode_t* node = memList;
         while (node != NULL)

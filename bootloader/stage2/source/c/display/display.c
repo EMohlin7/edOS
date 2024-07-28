@@ -1,12 +1,14 @@
-#include "display.h"
+#include "display/display.h"
 #include "stdlib.h"
-#include "vmm.h"
+#include "memMgmt/vmm.h"
 #define VID_PHYS_ADRS (0x00000000000B8000)
 #define NUM_ROWS 25
 #define NUM_COLUMNS 80
 
 static uint64_t cursorPos = 0;
 static uint16_t* vidMemory;
+
+//TODO: Fix cursor
 
 void printChar(char character, uint8_t color){
     if(character == '\n'){ //New line
@@ -47,7 +49,7 @@ void scroll(int lines){
         uint16_t* src = vidMemory + NUM_COLUMNS*i;
         uint16_t* dest = src + NUM_COLUMNS*lines;
         //Move line
-        memcpy(dest, src, NUM_COLUMNS+2);
+        memcpy(dest, src, NUM_COLUMNS*2);
 
         //Clear line
         memset(src, NULL, NUM_COLUMNS*2);
@@ -57,5 +59,5 @@ void scroll(int lines){
 }
 
 void initDisplay(void){
-    vidMemory = mapPage(VID_PHYS_ADRS, PRESENT | R_W, 0);
+    vidMemory = mapPage(VID_PHYS_ADRS, PRESENT | PWT | R_W, 0);
 }
