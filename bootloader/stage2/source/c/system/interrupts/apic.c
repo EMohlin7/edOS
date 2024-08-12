@@ -298,7 +298,9 @@ static lapic_t* lapicParse(const madtFirstEntry_t* firstEntry, uint8_t* numLapic
     while(i < tableLen){
         madtEntryHeader_t* entry = (madtEntryHeader_t*)(((uint64_t)firstEntry) + i);
         if(entry->entryType == LAPIC_ENTRY){
-            ++*numLapics;
+            LAPICEntry_t* lapicEntry = (LAPICEntry_t*)entry;
+            if((lapicEntry->flags & 3) != 0) //If this is zero it means that the processor is not enabled and cannot be enabled, so we ignore it
+                ++*numLapics;
         }
 
         i += entry->length;
@@ -316,11 +318,13 @@ static lapic_t* lapicParse(const madtFirstEntry_t* firstEntry, uint8_t* numLapic
             lapic_t* apic = lapics + index;
             LAPICEntry_t* lapicEntry = (LAPICEntry_t*)entry;
 
-            apic->id = lapicEntry->APICId;
-            apic->enabled = lapicEntry->flags & 1;
-            apic->onlineCapable = lapicEntry->flags & 2;
+            if((lapicEntry->flags & 3) != 0){ //If this is zero it means that the processor is not enabled and cannot be enabled, so we ignore it
+                apic->id = lapicEntry->APICId;
+                apic->enabled = lapicEntry->flags & 1;
+                apic->onlineCapable = lapicEntry->flags & 2;
 
-            ++index;
+                ++index;
+            } 
         }
 
         i += entry->length;
