@@ -69,7 +69,7 @@ SDTHeader_t* findSDT(SDTHeader_t* xSDT, const char* signature){
         uint16_t pOffset = pAddrs & 0xfff;
         SDTHeader_t* sdt = (SDTHeader_t*)((uint64_t)mapPage(pAddrs, PRESENT|R_W|PCD, 0) | pOffset); //Map pAddrs and add the offset
 
-        if(memcmp(sdt->signature, signature, sizeof(sdt->signature)) == 0)
+        if(memcmp(sdt->signature, signature, sizeof(sdt->signature)) == 0 && checkSDTChecksum(sdt))
             return sdt;
         umapPage(sdt);
     }
