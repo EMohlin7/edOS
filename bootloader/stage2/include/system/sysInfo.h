@@ -1,6 +1,6 @@
 #ifndef SYSINFO_H
 #define SYSINFO_H
-#include "stdint.h"
+#include "definitions.h"
 
 
 /// @brief Calls the "cpuid" x86 instruction
