@@ -165,20 +165,20 @@ bool hpetStartOneShot(hpet_t* hpet, uint8_t timer, uint64_t comparatorValue, uin
     uint64_t config = hpetReadReg(hpet->hpetRegsAddress, TIMER_N_CONFIGURATION_REG(timer));
     uint32_t routing = (config >> 32) & 0xffffff;
 
-    if(!hpet->legacyMode && timer > 1){
+    if(!hpet->legacyMode || timer > 1){
         if(((routing >> IOAPICRoute) & 1) == 0)
             return false;
-        //Clear route
-        if(hpet)
-        config &= ~(0x1f << 9);
-        //Set route
-        config |= IOAPICRoute << 9;
     }
     else{
         //When in legacy mode, timer 0 goes to 2 and timer 1 goes to 8
         IOAPICRoute = timer == 0 ? 2 : 8;
     }
 
+    //Clear route
+    if(hpet)
+    config &= ~(0x1f << 9);
+    //Set route
+    config |= IOAPICRoute << 9;
 
     //Make interrupt edge triggerd
     config &= ~(1 << 1);
@@ -208,7 +208,7 @@ bool hpetSetLegacy(hpet_t* hpet, bool legacy){
 
     uint64_t val = hpetReadReg(hpet->hpetRegsAddress, HPET_GENERAL_CONFIGURATIONS_REG);
     if(legacy){
-        val |= 1;
+        val |= 2;
     }
     else{
         val &= ~2;
