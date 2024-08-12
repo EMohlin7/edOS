@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include "display/display.h"
+#include "definitions.h"
 
 #define NUM_MAX_CHARS 20
 
