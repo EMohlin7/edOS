@@ -27,13 +27,14 @@ CSRC = \
 longMode.c \
 stdlib/print.c \
 display/display.c \
-system/interrupts.c \
 system/sysInfo.c \
 memMgmt/vmm.c \
 memMgmt/pmm.c \
 memMgmt/malloc.c \
 system/sysTables/systemTables.c \
-system/sysTables/apic.c \
+system/interrupts/interrupts.c \
+system/interrupts/apic.c \
+system/time/hpet.c \
 stdlib/memdump.c \
 
 
