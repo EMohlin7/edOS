@@ -100,6 +100,28 @@ void lapicWriteReg(void* apicBase, uint32_t reg, uint32_t val);
 
 uint32_t lapicReadReg(const void* apicBase, uint32_t reg);
 
+typedef enum{
+    LAPIC_IPI_FIXED = 0,
+    LAPIC_IPI_LOWEST_PRIO = 1,
+    LAPIC_IPI_SMI = 2,
+    LAPIC_IPI_REMOTE_READ = 3,
+    LAPIC_IPI_NMI = 4,
+    LAPIC_IPI_INIT = 5,
+    LAPIC_IPI_STARTUP = 6,
+    LAPIC_IPI_EXTERNAL = 7
+} lapicIPIMsgType_t;
+
+typedef enum{
+    LAPIC_IPI_NO_SHORT_DEST = 0,
+    LAPIC_IPI_DEST_SELF = 1,
+    LAPIC_IPI_DEST_ALL_INCLD_SELF = 2,
+    LAPIC_IPI_DEST_ALL_EXCLD_SELF = 3
+} lapicIPIDestShort_t;
+
+uint64_t lapicCreateIPIVal(uint8_t vector, lapicIPIMsgType_t msgType, bool logicalId, bool assert, bool levelSens, lapicIPIDestShort_t destShort, uint8_t dest);
+
+void lapicSendIPI(void* lapicRegAddrs, uint64_t ipiVal, bool shortDest);
+
 lapicSetup_t* lapicInit(const SDTHeader_t* madt);
 
 #endif

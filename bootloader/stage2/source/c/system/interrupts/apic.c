@@ -290,6 +290,30 @@ ioapicSetup_t* ioapicInit(const SDTHeader_t* madt){
     return apics;
 }
 
+uint64_t lapicCreateIPIVal(uint8_t vector, lapicIPIMsgType_t msgType, bool logicalId, bool assert, bool levelSens, lapicIPIDestShort_t destShort, uint8_t dest){
+    uint64_t val = 0;
+    #define add(x, mask, shift) ((uint64_t)x & mask) << shift;
+    val |= vector;
+    val |= add(msgType, 7, 8);
+    val |= add(logicalId, 1, 11);
+    val |= add(assert, 1, 14);
+    val |= add(levelSens, 1, 15);
+    val |= add(destShort, 3, 18);
+    val |= add(dest, 0xff, 56);
+
+    return val;
+}
+
+void lapicSendIPI(void* lapicRegAddrs, uint64_t ipiVal, bool shortDest){
+    if(!shortDest){
+        uint32_t val = ipiVal >> 32;
+        lapicWriteReg(lapicRegAddrs, LAPIC_INTERRUPT_COMMAND_HIGHER_REGISTER, val);
+    }
+
+    uint32_t val = (uint32_t)ipiVal;
+    lapicWriteReg(lapicRegAddrs, LAPIC_INTERRUPT_COMMAND_LOWER_REGISTER, val);
+}
+
 static lapic_t* lapicParse(const madtFirstEntry_t* firstEntry, uint8_t* numLapics){
     *numLapics = 0;
 
