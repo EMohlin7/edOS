@@ -54,26 +54,40 @@ uint8_t hpetGetRoute(const hpet_t* hpet, uint8_t timerIndex, bool free);
 /// @return true if the value was set and false if the HPET is still active.
 bool hpetSetCounter(const hpet_t* hpet, uint64_t value);
 
+/// @brief Get a timer that has an active level triggered interrupt.
+/// @param hpet The hpet whose interrupts will be checked.
+/// @param timer Pointer where the timer whose interrupt is active will be stored. If no timers are active this value will be 0xff.
+/// @param timers If multiple timers have active interrupts, this points to a bit field where the active interrupts will be stored.
+/// @return true if multiple interrupts are active, else false;
+bool hpetGetActiveInterrupt(const hpet_t* hpet, uint8_t* timer, uint32_t* timers);
+
+void hpetClearInterrupt(const hpet_t* hpet, uint8_t timer);
+
 /// @brief Stop a HPET timer.
 /// @param hpet Pointer to the HPET.
 /// @param timer The index of the timer to be stopped.
 void hpetStopTimer(hpet_t* hpet, uint8_t timer);
 
-//TODO: Implement periodic timers
-/// @brief 
-/// @param hpet 
-/// @param timer 
-/// @param periodMs 
-/// @param IOAPICId 
-/// @param IOAPICRoute 
-/// @return 
-int hpetStartPeriodicTimerUs(hpet_t* hpet, uint8_t timer, uint64_t periodUs, uint8_t IOAPICRoute);
+/// @brief Start a hpet timer. The hpet has to be enabled for the timer to generate interrupts.
+/// @param hpet The hpet whose timer will be started.
+/// @param timer The timer to start.
+/// @param periodic If the timer should be in periodic mode, else it is in oneshot mode.
+/// @param timePeriod The number of ticks before the onshot timer fires, or the number of ticks between interrupts in periodic mode.
+/// @param ioapicRoute The ioapic input the interrupt will be routed to.
+/// @param levelTrig If the interrupt is level triggerd, else it is edge triggerd.
+/// @return false if the timer number or ioapic route is invalid, else true.
+bool hpetStartTimer(hpet_t* hpet, uint8_t timer, bool periodic, uint64_t timePeriod, uint8_t ioapicRoute, bool levelTrig);
 
-int hpetStartPeriodicTimer(hpet_t* hpet, uint8_t timer, uint64_t comparatorValue, uint8_t IOAPICRoute);
+/// @brief Start a hpet timer. The hpet has to be enabled for the timer to generate interrupts.
+/// @param hpet The hpet whose timer will be started.
+/// @param timer The timer to start.
+/// @param periodic If the timer should be in periodic mode, else it is in oneshot mode.
+/// @param timePeriodUs The number of micro seconds before the onshot timer fires, or the number of micro seconds between interrupts in periodic mode.
+/// @param ioapicRoute The ioapic input the interrupt will be routed to.
+/// @param levelTrig If the interrupt is level triggerd, else it is edge triggerd.
+/// @return false if the timer number or ioapic route is invalid, else true.
+bool hpetStartTimerUs(hpet_t* hpet, uint8_t timer, bool periodic, uint64_t timePeriodUs, uint8_t ioapicRoute, bool levelTrig);
 
-int hpetStartOneShotUs(hpet_t* hpet, uint8_t timer, uint64_t timeUs, uint8_t IOAPICRoute);
-
-bool hpetStartOneShot(hpet_t* hpet, uint8_t timer, uint64_t comparatorValue, uint8_t IOAPICRoute);
 
 /// @brief Set the legacy mode of the hpet.
 /// @param hpet The hpet whose legacy mode shall be set.

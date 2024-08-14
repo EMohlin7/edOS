@@ -138,10 +138,37 @@ uint8_t hpetGetRoute(const hpet_t* hpet, uint8_t timerIndex, bool free){
 /// @param value The new value of the counter.
 /// @return true if the value was set and false otherwise.
 bool hpetSetCounter(const hpet_t* hpet, uint64_t value){
-    if(!hpet->enabled)
+    if(hpet->enabled)
         return false;
     hpetWriteReg(hpet->hpetRegsAddress, HPET_MAIN_COUNTER_REG, value);
     return true;
+}
+
+/// @brief Get a timer that has an active level triggered interrupt.
+/// @param hpet The hpet whose interrupts will be checked.
+/// @param timer Pointer where the timer whose interrupt is active will be stored. If no timers are active this value will be 0xff.
+/// @param timers If multiple timers have active interrupts, this points to a bit field where the active interrupts will be stored.
+/// @return true if multiple interrupts are active, else false;
+bool hpetGetActiveInterrupt(const hpet_t* hpet, uint8_t* timer, uint32_t* timers){
+    uint32_t interrupts = hpetReadReg(hpet->hpetRegsAddress, HPET_GENERAL_INTERRUPT_STATUS_REG) & UINT32_MAX;
+    uint32_t numInterrupts = 5;
+    __asm__("popcnt %0, %1\n" : "=r"(numInterrupts) : "rm"(interrupts) : "cc");
+
+    if(numInterrupts == 0){
+        *timer = 0xff;
+        return false; 
+    }
+    else if(numInterrupts == 1){
+        uint8_t i = 0;
+        while(interrupts > 1){
+            interrupts >>= i++;
+        }
+        *timer = i;
+        return false;
+    }
+
+    *timers = interrupts;
+    return false;
 }
 
 /// @brief Stop a HPET timer.
@@ -159,42 +186,75 @@ void hpetStopTimer(hpet_t* hpet, uint8_t timer){
     hpetWriteReg(hpet->hpetRegsAddress, TIMER_N_CONFIGURATION_REG(timer), reg & ~(1<<2));
 }
 
-bool hpetStartOneShot(hpet_t* hpet, uint8_t timer, uint64_t comparatorValue, uint8_t IOAPICRoute){
-    if(timer >= hpet->numTimers)
-        return false;
+static bool routeValid(hpet_t* hpet, uint8_t timer, uint8_t route){
     uint64_t config = hpetReadReg(hpet->hpetRegsAddress, TIMER_N_CONFIGURATION_REG(timer));
     uint32_t routing = (config >> 32) & 0xffffff;
 
     if(!hpet->legacyMode || timer > 1){
-        if(((routing >> IOAPICRoute) & 1) == 0)
-            return false;
+        if(((routing >> route) & 1) == 0)
+            return false; //Return false if the route is not available
+    }
+
+    return true;
+} 
+
+static uint64_t createConfigVal(hpet_t* hpet, uint8_t timer, uint8_t route, bool periodic, bool levelTrig){
+    uint64_t config = hpetReadReg(hpet->hpetRegsAddress, TIMER_N_CONFIGURATION_REG(timer));
+    //Clear configuration bits
+    config &= 0xffffffff00008030;
+
+    config |= route << 9;
+
+    config |= (periodic & 1) << 3;
+
+    config |= (levelTrig & 1) << 1;
+    return config;
+}
+
+/// @brief Start a hpet timer. The hpet has to be enabled for the timer to generate interrupts.
+/// @param hpet The hpet whose timer will be started.
+/// @param timer The timer to start.
+/// @param periodic If the timer should be in periodic mode, else it is in oneshot mode.
+/// @param timePeriod The number of ticks before the onshot timer fires, or the number of ticks between interrupts in periodic mode.
+/// @param ioapicRoute The ioapic input the interrupt will be routed to.
+/// @param levelTrig If the interrupt is level triggerd, else it is edge triggerd.
+/// @return false if the timer number or ioapic route is invalid, else true.
+bool hpetStartTimer(hpet_t* hpet, uint8_t timer, bool periodic, uint64_t timePeriod, uint8_t ioapicRoute, bool levelTrig){
+    if(timer >= hpet->numTimers)
+        return false;
+    uint64_t config = createConfigVal(hpet, timer, ioapicRoute, periodic, levelTrig);
+    if(!routeValid(hpet, timer, ioapicRoute))
+        return false;
+
+    if(periodic){
+        //Set accumulator. When this bit is set, the second next write to the comparator will write to the accumulator instead.
+        config |= 1 << 6;
+        hpetWriteReg(hpet->hpetRegsAddress, TIMER_N_CONFIGURATION_REG(timer), config);
+
+        uint64_t count = hpetReadReg(hpet->hpetRegsAddress, HPET_MAIN_COUNTER_REG);
+        //Write to comparator to set when the intterrupts will start
+        hpetWriteReg(hpet->hpetRegsAddress, TIMER_N_COMPARATOR_REG(timer), count + timePeriod);
+        //Write to accumulator to set the period of the interrupts
+        hpetWriteReg(hpet->hpetRegsAddress, TIMER_N_COMPARATOR_REG(timer), timePeriod);
     }
     else{
-        //When in legacy mode, timer 0 goes to 2 and timer 1 goes to 8
-        IOAPICRoute = timer == 0 ? 2 : 8;
+        uint64_t count = hpetReadReg(hpet->hpetRegsAddress, HPET_MAIN_COUNTER_REG);
+        hpetWriteReg(hpet->hpetRegsAddress, TIMER_N_COMPARATOR_REG(timer), count + timePeriod);
     }
-
-    //Clear route
-    if(hpet)
-    config &= ~(0x1f << 9);
-    //Set route
-    config |= IOAPICRoute << 9;
-
-    //Make interrupt edge triggerd
-    config &= ~(1 << 1);
-
-    //Set timer to one shot mode
-    config &= ~(1 << 3);
-
-
-    hpet->timerRoutes[timer] = IOAPICRoute;
 
     //Enable timer
     config |= (1 << 2);
     hpetWriteReg(hpet->hpetRegsAddress, TIMER_N_CONFIGURATION_REG(timer), config);
-    hpetWriteReg(hpet->hpetRegsAddress, TIMER_N_COMPARATOR_REG(timer), comparatorValue);
 
+
+    hpet->timerRoutes[timer] = ioapicRoute;
+    hpet->activeTimers |= (1 << timer);
     return true;
+}
+
+bool hpetStartTimerUs(hpet_t* hpet, uint8_t timer, bool periodic, uint64_t timePeriodUs, uint8_t ioapicRoute, bool levelTrig){
+    uint64_t period = timePeriodUs * (hpet->frequency / 1000000);
+    return hpetStartTimer(hpet, timer, periodic, period, ioapicRoute, levelTrig);
 }
 
 // @brief Set the legacy mode of the hpet.
