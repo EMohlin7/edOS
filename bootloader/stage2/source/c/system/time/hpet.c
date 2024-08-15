@@ -150,6 +150,7 @@ bool hpetSetCounter(const hpet_t* hpet, uint64_t value){
 /// @param timers If multiple timers have active interrupts, this points to a bit field where the active interrupts will be stored.
 /// @return true if multiple interrupts are active, else false;
 bool hpetGetActiveInterrupt(const hpet_t* hpet, uint8_t* timer, uint32_t* timers){
+    //Bitfield with active interrupts
     uint32_t interrupts = hpetReadReg(hpet->hpetRegsAddress, HPET_GENERAL_INTERRUPT_STATUS_REG) & UINT32_MAX;
     uint32_t numInterrupts = 5;
     __asm__("popcnt %0, %1\n" : "=r"(numInterrupts) : "rm"(interrupts) : "cc"); //Get number of set bits
@@ -161,7 +162,8 @@ bool hpetGetActiveInterrupt(const hpet_t* hpet, uint8_t* timer, uint32_t* timers
     else if(numInterrupts == 1){
         uint8_t i = 0;
         while(interrupts > 1){
-            interrupts >>= i++;
+            ++i;
+            interrupts >>= 1;
         }
         *timer = i;
         return false;
@@ -169,6 +171,16 @@ bool hpetGetActiveInterrupt(const hpet_t* hpet, uint8_t* timer, uint32_t* timers
 
     *timers = interrupts;
     return true;
+}
+
+/// @brief Clear a level triggered interrupt.
+/// @param hpet The hpet whose timer's interrupt will be cleared.
+/// @param timer The timer whose interrupt will be cleared.
+void hpetClearInterrupt(const hpet_t* hpet, uint8_t timer){
+    uint32_t interrupts = hpetReadReg(hpet->hpetRegsAddress, HPET_GENERAL_INTERRUPT_STATUS_REG) & UINT32_MAX;
+    uint32_t clearVal = 1 << timer; //A write of 1 to the active interrupt bit will clear the interrupt
+    if((interrupts >> timer) & 1) 
+        hpetWriteReg(hpet->hpetRegsAddress, HPET_GENERAL_INTERRUPT_STATUS_REG, clearVal);
 }
 
 /// @brief Stop a HPET timer.

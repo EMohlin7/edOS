@@ -61,6 +61,9 @@ bool hpetSetCounter(const hpet_t* hpet, uint64_t value);
 /// @return true if multiple interrupts are active, else false;
 bool hpetGetActiveInterrupt(const hpet_t* hpet, uint8_t* timer, uint32_t* timers);
 
+/// @brief Clear a level triggered interrupt.
+/// @param hpet The hpet whose timer's interrupt will be cleared.
+/// @param timer The timer whose interrupt will be cleared.
 void hpetClearInterrupt(const hpet_t* hpet, uint8_t timer);
 
 /// @brief Stop a HPET timer.
