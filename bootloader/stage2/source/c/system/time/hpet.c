@@ -152,7 +152,7 @@ bool hpetSetCounter(const hpet_t* hpet, uint64_t value){
 bool hpetGetActiveInterrupt(const hpet_t* hpet, uint8_t* timer, uint32_t* timers){
     uint32_t interrupts = hpetReadReg(hpet->hpetRegsAddress, HPET_GENERAL_INTERRUPT_STATUS_REG) & UINT32_MAX;
     uint32_t numInterrupts = 5;
-    __asm__("popcnt %0, %1\n" : "=r"(numInterrupts) : "rm"(interrupts) : "cc");
+    __asm__("popcnt %0, %1\n" : "=r"(numInterrupts) : "rm"(interrupts) : "cc"); //Get number of set bits
 
     if(numInterrupts == 0){
         *timer = 0xff;
@@ -168,7 +168,7 @@ bool hpetGetActiveInterrupt(const hpet_t* hpet, uint8_t* timer, uint32_t* timers
     }
 
     *timers = interrupts;
-    return false;
+    return true;
 }
 
 /// @brief Stop a HPET timer.
