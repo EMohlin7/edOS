@@ -200,8 +200,8 @@ void umapPage(void* addrs){
     PT_t* pt = getPT(index);
     uint64_t* ptEntry = &pt->entries[ptOffset];
 
-    if(*ptEntry == 0)
-        return;
+    //if(*ptEntry == 0)
+      //  return;
 
     *ptEntry = 0; //Clear page table entry;
 

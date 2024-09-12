@@ -63,16 +63,42 @@ void initIDT(){
 }
 
 lapicSetup_t* lapicSetup;
+hpet_t* hpet;
+
+void handleInter(){
+    uint8_t t;
+    uint32_t t2;
+    if(hpetGetActiveInterrupt(hpet, &t, &t2)){
+        printf("Multiple");
+    }
+    else if(t != 0xff){
+        hpetClearInterrupt(hpet, t);
+        printf("timer: %d, comp: %lu, count: %lu\n", t, hpetGetComparator(hpet, t), hpetGetCount(hpet));
+    }
+    else{
+        printf("keyboard\n");
+    }
+}
 
 ISR hpetInter(){
     ISR_SAVE_REGS;
 
-    printf("timer\n");
+    handleInter();
     lapicWriteReg(lapicSetup->registerAddress, LAPIC_EOI_REGISTER, 0);
 
     ISR_RESTORE_REGS;
     ISR_RETURN;
 }
+
+ISR ipiInter(){
+    ISR_SAVE_REGS;
+    printf("IPI interrupt\n");
+    lapicWriteReg(lapicSetup->registerAddress, LAPIC_EOI_REGISTER, 0);
+
+    ISR_RESTORE_REGS;
+    ISR_RETURN;
+}
+
 
 void setupInterrupts(){
     uint32_t eax = 1, edx, _;
@@ -110,31 +136,66 @@ void setupInterrupts(){
     }
 
     
-    hpet_t* hpet = hpetInit(hpetTable);
+    uint8_t timer = 1;
+    hpet = hpetInit(hpetTable);
+    printf("HPET num timers: %d, 64bit: %s\n", hpet->numTimers, hpet->bit64Counter ? "true" : "false");
+    printf("HPET frequency %ld\n", hpet->frequency);
+    for(int i = 0; i < hpet->numTimers; ++i){
+        hpetTimerCapability_t cap = hpetGetTimerCapability(hpet, i);
+        printf("Timer %d routes: %#x, periodic: %s\n", i, cap.routing, cap.periodic ? "true" : "false");
+    }
     bool legacy = hpetSetLegacy(hpet, true);
-    uint8_t timer = 0;
-    uint8_t ioapicEntry = legacy ? 2 : hpetGetRoute(hpet, timer, false);
-    hpetStartOneShot(hpet, timer, hpet->frequency*2, ioapicEntry);
+    
+    uint8_t ioapicEntry = legacy ? 8 : hpetGetRoute(hpet, timer, false);
+
+    hpetStartTimerUs(hpet, timer, true, 5000000, ioapicEntry, true);
     SDTHeader_t* madt = findSDT(rsdt, "APIC");
     if(madt){
         makeNullTerminated(madtSign, madt->signature);
         printf("APIC table found. Sign: %s. Length: %d\n", madtSign, madt->length);
         lapicSetup = lapicInit(madt);
         ioapicSetup_t* test = ioapicInit(madt);
+        printf("Num lapics: %d. Boot lapic: %d\n", lapicSetup->numLapics, lapicSetup->bootApicId);
+      
+        printf("Num ioapics: %d\n", test->number);
+        for(uint64_t i = 0; i < test->number; ++i){
+            printf("IOAPIC: id: %d, entries: %d, gsiBase: %d ", test->ioapics[i].id, test->ioapics[i].numEntries, test->ioapics[i].gsiBase);
+        }    
+        printf("\n");
         ioapicRedirEntry_t entry = {
-            .activeLow = true,
+            .activeLow = false,
             .deliveryMode = 0,
-            .irqVector = 33,
+            .irqVector = 100,
+            .lapicId = 0,
+            .levelSens = true,
+            .logicAddrs = false,
+            .masked = false
+        };
+        ioapicSetRedirEntry(test->ioapics, ioapicEntry, entry);
+
+    
+        ioapicRedirEntry_t keyEntry = {
+            .activeLow = false,
+            .deliveryMode = 0,
+            .irqVector = 100,
             .lapicId = 0,
             .levelSens = false,
             .logicAddrs = false,
             .masked = false
         };
-        ioapicSetRedirEntry(test->ioapics, ioapicEntry, entry);
+        ioapicSetRedirEntry(test->ioapics, 1, keyEntry);
     }
-    setIDTEntry(33, hpetInter, 0, INTERRUPT_GATE, 0, true);
+
+    setIDTEntry(100, hpetInter, 0, INTERRUPT_GATE, 0, true);
+    setIDTEntry(34, ipiInter, 0, INTERRUPT_GATE, 0, true);
+
+    printf("%d", hpetGetCount(hpet));
     hpetEnable(hpet);
-    
+
+    uint64_t ipiVal = lapicCreateIPIVal(34, 0, false, false, false, 1, 10);
+    lapicSendIPI(lapicSetup->registerAddress, ipiVal, true);
+
+   
 }
 
 static void disablePIC(){
@@ -145,9 +206,9 @@ static void disablePIC(){
             : /*No output*/ : /*No input*/ : "al");
 
     //Disable PIT
-    __asm__("mov al, 0x10\n\t" \
+    //__asm__("mov al, 0x10\n\t" \
             "outb 0x43, al\n\t" \
-            "mov al, 1\n\t" \
+            "mov al, 0\n\t" \
             "outb 0x40, al"\
             : : : "al");
 }

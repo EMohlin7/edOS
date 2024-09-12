@@ -192,12 +192,23 @@ bool ioapicSetRedirEntry(ioapic_t* ioapic, uint8_t entryNum, ioapicRedirEntry_t 
     return true;
 }
 
+static bool ioapicISOisValid(ioAPICisoEntry_t* overrideEntry, ioapic_t* apic){
+    if(overrideEntry->busSource != 0) //Only supports ISA bus
+        return false;
+    if(overrideEntry->IRQSource > 15) //Max ISA IRQ
+        return false;
+    if((overrideEntry->gsi - apic->gsiBase) >= apic->numEntries)
+        return false;
+    
+    return true;
+}
+
 static void ioapicGetNumbers(const ioAPICEntry_t* ioapicEntry, ioapic_t* apic, uint64_t i, uint64_t tableLength){
     uint64_t len = tableLength - i;
     uint64_t index = sizeof(ioAPICEntry_t);
     while(index < len){
         madtEntryHeader_t* entry = (madtEntryHeader_t*)((uint64_t)ioapicEntry + index);
-        if(entry->entryType == IOAPIC_ISO_ENTRY){
+        if(entry->entryType == IOAPIC_ISO_ENTRY && ioapicISOisValid((ioAPICisoEntry_t*)entry, apic)){
             apic->numOverrides++;
         }
         else if(entry->entryType == IOAPIC_NMI_ENTRY){
@@ -233,15 +244,15 @@ static ioapic_t* ioapicParse(const madtFirstEntry_t* firstEntry, uint32_t numIoa
             uint16_t offset = apicEntry->ioAPICAddrs & 0xfff;
             uint64_t vAddrs = (uint64_t)mapPage(apicEntry->ioAPICAddrs, PRESENT | PCD | R_W, 0);
             apic->address = (void*)(vAddrs | offset);
+            apic->numEntries = ((ioapicReadReg(apic->address, IOAPIC_VERSION_REGISTER) >> 16) & 0xff) + 1; 
 
             ioapicGetNumbers(apicEntry, apic, i, tableLength);
             apic->nmis = apic->numNMI > 0 ? malloc(apic->numNMI*sizeof(ioapicNMI_t)) : NULL;
             apic->overrides = apic->numOverrides > 0 ? malloc(apic->numOverrides*sizeof(ioapicOverride_t)) : NULL;
-            apic->numEntries = ((ioapicReadReg(apic->address, IOAPIC_VERSION_REGISTER) >> 16) & 0xff) + 1; 
 
             memset(apic->entries, 0, sizeof(apic->entries));
         }
-        else if(entry->entryType == IOAPIC_ISO_ENTRY){
+        else if(entry->entryType == IOAPIC_ISO_ENTRY && ioapicISOisValid((ioAPICisoEntry_t*)entry, apics + apicIndex)){
             ++overrideIndex;
             ioAPICisoEntry_t* overrideEntry = (ioAPICisoEntry_t*)entry;
             ioapicOverride_t* override = apics[apicIndex].overrides + overrideIndex;

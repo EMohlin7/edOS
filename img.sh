@@ -38,13 +38,15 @@ dd if=${BOOTLOADER} conv=notrunc bs=1 count=422 seek=$(($START+90)) of=$OF
 dd if=${BOOTLOADER} conv=notrunc bs=1 count=422 seek=$(($START+90+6*$SECTOR_SIZE)) of=$OF
 
 #Mount image file and add stage2 to the file system
-loop=$(losetup -f)
+loop=$(sudo losetup -f)
 echo Using loop device: $loop
 
 sudo losetup -P  $loop $OF
 sudo mount -o sync $loop"p1" img
 
 sudo cp bootloader/stage2/build/stage2.bin img
+sudo cp kernel/build/stage2.bin img/kernel.bin
+
 
 sudo umount img
 sudo losetup -d $loop

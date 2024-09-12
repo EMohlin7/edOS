@@ -1,53 +1,39 @@
+BIN = build/stage2.bin
 ELF = build/stage2.elf
 SYMS = build/stage2.sym
-BIN = build/stage2.bin
+
+ASMC = yasm
+ASM_FLAGS = -f elf64 -g dwarf2
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fno-pie -c -masm=intel -g -D'NULL=0' -iquote include
-ASMC = yasm
-ASMFLAGS = -f elf64 -g dwarf2
+C_FLAGS = -Wall -Wextra -Wpedantic -ffreestanding -nostdlib -lgcc -mno-red-zone -fpie -c -masm=intel -g -D'NULL=0' -iquote include
+
 LINK = ld
 LD_SCRIPT = stage2.ld
 
-ODIR = build/objects
+SRC_DIR = source
 
-ASMS_DIR = source/asm
-ASMS = entry.s idt.s mem.s
-ASMO_DIR = ${ODIR}/asm
-ASMO := $(ASMS:.s=.o)
+ASRC_NAMES = \
+stage2.s \
+loadFile.s \
+pm.s \
+lm.s
 
-C32S_DIR = source/c
-C32S = memMgmt/pageTable.c 
-C32O_DIR = ${ODIR}/c32
-C32O := $(C32S:.c=32.o)
+CSRC_NAMES = mapKernel.c
 
+CSRC = $(addprefix ${SRC_DIR}/, $(CSRC_NAMES))
+ASRC = $(addprefix ${SRC_DIR}/, ${ASRC_NAMES})
 
-CSRC_DIR = source/c
-CSRC = \
-longMode.c \
-stdlib/print.c \
-display/display.c \
-system/sysInfo.c \
-memMgmt/vmm.c \
-memMgmt/pmm.c \
-memMgmt/malloc.c \
-system/sysTables/systemTables.c \
-system/interrupts/interrupts.c \
-system/interrupts/apic.c \
-system/time/hpet.c \
-stdlib/memdump.c \
+OBJ_DIR = build/objects
+AOBJ_NAMES = $(ASRC_NAMES:.s=.o)
+COBJ_NAMES = $(CSRC_NAMES:.c=.o)
 
+COBJS = $(addprefix ${OBJ_DIR}/, ${COBJ_NAMES})
+AOBJS = $(addprefix ${OBJ_DIR}/, ${AOBJ_NAMES})
 
-COBJ_DIR = ${ODIR}/c
-COBJ := $(CSRC:.c=.o)
+OBJS = ${AOBJS} ${COBJS}
 
-
-OBJS = $(addprefix ${COBJ_DIR}/, ${COBJ}) $(addprefix ${C32O_DIR}/, ${C32O}) $(addprefix ${ASMO_DIR}/, ${ASMO}) 
-OBJDIRS = $(dir ${OBJS})
-
-all: ${OBJDIRS} ${BIN}
-	
-
+all: ${OBJ_DIR} ${BIN} 
 
 ${BIN}: ${ELF}
 	objcopy --only-keep-debug $^ ${SYMS}
@@ -57,28 +43,15 @@ ${BIN}: ${ELF}
 ${ELF}: ${OBJS}
 	${LINK} -o $@ $^ -T ${LD_SCRIPT}
 
+${AOBJS}: ${ASRC}
+	${ASMC} ${ASM_FLAGS} -o $@ $(subst .o,.s, $(subst ${OBJ_DIR},${SRC_DIR}, $@))
 
-#Assembly code
-${ASMO_DIR}/%.o: ${ASMS_DIR}/%.s 
-	${ASMC} ${ASMFLAGS} $^ -o $@
-
-
-#32-bit c code
-${C32O_DIR}/%32.o: ${C32S_DIR}/%.c
-	${CC} ${CFLAGS} -m32 -DBIT32 -S -o $@_temp.s $^
-	echo '.code32' | cat - $@_temp.s > $@_temp && mv $@_temp $@_temp.s
-#	${CC} ${CFLAGS} -o $@ $@_temp.s
-	-as -Z --gdwarf-2 -o $@ $@_temp.s
-	rm $@_temp.s
-
-#c code
-${COBJ_DIR}/%.o: ${CSRC_DIR}/%.c
-	${CC} ${CFLAGS} -o $@ $^
-
-
-${OBJDIRS}:
+${COBJS}: ${CSRC}
+	${CC} ${C_FLAGS} -o $@ $(subst .o,.c, $(subst ${OBJ_DIR},${SRC_DIR}, $@))
+	
+${OBJ_DIR}:
 	mkdir -p $@
 
 .PHONY: clean
 clean:
-	rm build/* -r
+	rm -r build/*

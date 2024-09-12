@@ -19,25 +19,37 @@ typedef struct MemNode
     uint64_t end;
 } MemNode_t;
 
-enum MemType{
-    empty, 
-    usable,
-    reserved,
-    reclaimable,
-    NVS,
-    bad
+enum MemType
+{
+    MEM_EMPTY = 0,
+    MEM_USABLE = 1,
+    MEM_RESERVED = 2,
+    MEM_RECLAIMABLE = 3,
+    MEM_NVS = 4,
+    MEM_BAD = 5
 };
 
+MemNode_t* memList = NULL;
 
-MemNode_t* memList;
+//extern MemMap_t memoryMap[MEMMAP_LENGTH];
+MemMap_t* initMemBlock; //Used for initializing the memList
 
-extern MemMap_t memoryMap[MEMMAP_LENGTH];
+
+void newInitPMM(){
+   /* for(int i = 0; i < MEMMAP_LENGTH; ++i){
+        if(memoryMap[i].type == MEM_EMPTY && memoryMap[i].length >= PAGE_SIZE*2){
+            initMemBlock = memoryMap + i;
+        }
+    }
+*/
+    
+}
 
 //#define BIT32
 //#ifdef BIT32
 #define SIZE 0x20
 void initPMM(void){
-    MemNode_t* lowest = (MemNode_t*)SIZE;
+   /* MemNode_t* lowest = (MemNode_t*)SIZE;
     MemNode_t* nextAdrs = (MemNode_t*)(2*SIZE);
     int i = 0;
     MemMap_t m = memoryMap[i];
@@ -104,7 +116,7 @@ void initPMM(void){
         }
     }  
 
-    memList = lowest; 
+    memList = lowest; */
 }
 //#endif //BIT32
 

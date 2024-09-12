@@ -75,6 +75,7 @@ PM:
 
 ;Enable long mode
 elm:
+    mov edx, 0
     ;enable PAE
     mov eax, cr4
     or eax, (1 << 5)
