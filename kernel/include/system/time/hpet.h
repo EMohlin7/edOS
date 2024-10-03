@@ -41,6 +41,12 @@ uint64_t hpetGetComparator(const hpet_t* hpet, uint8_t timer);
 /// @return The value inside the HPET's counter register.
 uint64_t hpetGetCount(const hpet_t* hpet);
 
+/// @brief Check if a route is used by any of the timers
+/// @param hpet The hpet the timers belong to
+/// @param route The route that will be checked for use
+/// @return true if the route is used, false if the route is free
+bool hpetIsRouteUsed(const hpet_t* hpet, uint8_t route);
+
 /// @brief Return a timers valid ioapic route.
 /// @param hpet The hpet this timer belongs to. 
 /// @param timerIndex The timer whose route shall be returned. 

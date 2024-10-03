@@ -98,6 +98,19 @@ uint64_t hpetGetCount(const hpet_t* hpet){
     return hpetReadReg(hpet->hpetRegsAddress, HPET_MAIN_COUNTER_REG);
 }
 
+/// @brief Check if a route is used by any of the timers
+/// @param hpet The hpet the timers belong to
+/// @param route The route that will be checked for use
+/// @return true if the route is used, false if the route is free
+bool hpetIsRouteUsed(const hpet_t* hpet, uint8_t route){
+    for(int timer = 0; timer < hpet->numTimers; ++timer){
+        if(((hpet->activeTimers >> timer) & 1) && hpet->timerRoutes[timer] == route){
+            return true;
+        }
+    }
+    return false;
+}
+
 /// @brief Return a timers valid ioapic route.
 /// @param hpet The hpet this timer belongs to. 
 /// @param timerIndex The timer whose route shall be returned. 
@@ -107,30 +120,26 @@ uint8_t hpetGetRoute(const hpet_t* hpet, uint8_t timerIndex, bool free){
     hpetTimerCapability_t cap = hpetGetTimerCapability(hpet, timerIndex);
     if(!cap.exists)
         return 0xff;
-    uint8_t route = 0xff;
-    for(size_t i = 0; i < sizeof(cap.routing)*8; ++i){
-        if(((cap.routing >> i) & 1) == 0)
+
+    uint8_t foundRoute = 0xff;
+    for(size_t route = 0; route < sizeof(cap.routing)*8; ++route){
+        if(((cap.routing >> route) & 1) == 0)
             continue;
+        
         if(free){
-            bool empty = true;
-            for(int t = 0; t < hpet->numTimers; ++t){
-                if(((hpet->activeTimers >> t) & 1) && hpet->timerRoutes[t] == i){
-                    empty = false;
-                    break;
-                }
-            }
-            if(empty){
-                route = i;
+            bool used = hpetIsRouteUsed(hpet, route);
+            if(!used){
+                foundRoute = route;
                 break;
             }
         }
         else{
-            route = i;
+            foundRoute = route;
             break;
         }
     }
 
-    return route;
+    return foundRoute;
 }
 
 /// @brief Set the counter value. Should only be done while the HPET is disabled.
